@@ -14,7 +14,7 @@ class Command {
 protected:
     pid_t pid;
     const char* command_line;
-    int job_id;
+    //int job_id;
     bool background;
     char* args_of_command[COMMAND_MAX_ARGS];
     int num_args;
@@ -25,6 +25,8 @@ public:
     Command(const char* cmd_line):command_line(cmd_line){};
     virtual ~Command();
     virtual void execute() = 0;
+    const char* getCommandLine(){return command_line;}
+    int getPid(){return pid;}
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
@@ -105,9 +107,26 @@ class QuitCommand : public BuiltInCommand {
 
 
 class JobsList {
+    int max_id;
 public:
     class JobEntry {
         // TODO: Add your data members
+    public :
+        int job_id;
+        time_t arrived_time;
+        int job_status; //0 stopeed, 1 running
+        Command* command_of_job;
+
+
+        JobEntry(int job_id, time_t arrived_time,int job_status, Command* command_of_job):
+                job_id(job_id),arrived_time(arrived_time),job_status(job_status),command_of_job(command_of_job){}
+        int get_status(){return job_status;}
+        int get_job_id(){return job_id;}
+        int get_pid(){return command_of_job->getPid();}
+
+
+
+
     };
     // TODO: Add your data members
 public:
@@ -122,20 +141,25 @@ public:
     JobEntry * getLastJob(int* lastJobId);
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
+    std::vector<JobEntry> jobs_list;
+    void deleteSpecificJobByID(int id_to_delete);
+
 };
 
 class JobsCommand : public BuiltInCommand {
     // TODO: Add your data members
+    JobsList* jobs;
 public:
-    JobsCommand(const char* cmd_line, JobsList* jobs);
+    JobsCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line), jobs(jobs){}
     virtual ~JobsCommand() {}
     void execute() override;
 };
 
 class KillCommand : public BuiltInCommand {
     // TODO: Add your data members
+    JobsList* jobs;
 public:
-    KillCommand(const char* cmd_line, JobsList* jobs);
+    KillCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line), jobs(jobs){}
     virtual ~KillCommand() {}
     void execute() override;
 };

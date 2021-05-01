@@ -276,7 +276,87 @@ void ShowPidCommand::execute(){
 }
 
 
+KillCommand::KillCommand(const char* cmd_line, JobsList* jobs) :
+        BuiltInCommand(cmd_line){
+
+
+
+}
+
+
+void KillCommand::execute(){
+}
+
+
+
 
 void QuitCommand::execute(){
 
 }
+JobsList::JobEntry* JobsList::getJobById(int job_id){
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        if(job_id==iter->job_id){
+            return &(*iter);
+        }
+    }
+    return NULL;
+
+}
+void JobsList::deleteSpecificJobByID(int id_to_delete){
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        if(id_to_delete==iter->job_id){
+            jobs_list.erase(iter);
+            break;
+        }
+
+
+
+    }
+}
+
+void JobsList::removeFinishedJobs(){
+    pid_t result_of_wait;
+    std::vector<JobEntry> jobs_to_erase;
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        result_of_wait=waitpid(iter->get_pid(),NULL,WNOHANG);
+        //CHECK IF RESULT WAS BAD
+
+        jobs_to_erase.push_back(*iter);
+    }
+    //now its time to delete
+
+    for(auto iter= jobs_to_erase.begin();iter!=jobs_to_erase.end();++iter){
+        deleteSpecificJobByID(iter->job_id);
+    }
+    //find max+id
+    int max_id=0;
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        if(max_id<iter->job_id){
+            max_id=iter->job_id;
+        }
+    }
+    this->max_id=max_id;
+}
+
+
+void JobsCommand::execute(){
+    for(auto iter= jobs->jobs_list.begin();iter!=jobs->jobs_list.end();++iter){
+
+        std::cout<<"["<<iter->get_job_id()<<"] "<<string(iter->command_of_job->getCommandLine())<<" : "<<
+                 iter->get_pid()<<" "<<difftime(time(NULL),iter->arrived_time)<<" secs";
+        if(iter->get_status()==0){ //stoped
+            std::cout<<" (stopped)";
+        }
+        std::cout<<endl;
+    }
+}
+
+/*void KillCommand::execute(){
+  if (num_args!=3){
+        std::cout<<"smash error: kill: invalid arguments"<<endl;
+        return;
+  }
+  JobsList::JobEntry* job_to_kill=getJobById( job_id);
+
+}*/
+
