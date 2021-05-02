@@ -276,20 +276,6 @@ void ShowPidCommand::execute(){
 }
 
 
-KillCommand::KillCommand(const char* cmd_line, JobsList* jobs) :
-        BuiltInCommand(cmd_line){
-
-
-
-}
-
-
-void KillCommand::execute(){
-}
-
-
-
-
 void QuitCommand::execute(){
 
 }
@@ -312,6 +298,25 @@ void JobsList::deleteSpecificJobByID(int id_to_delete){
 
 
     }
+}
+void JobsList::printSpecificJobByID(int id_to_print){
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        if(id_to_print==(*iter)->job_id){
+            std::cout << string((*iter)->command_of_job->getCommandLine()) << " : " << (*iter)->get_pid() << endl;
+
+            break;
+        }
+    }
+}
+
+JobsList::JobEntry* JobsList::getLastStoppedJob(int *jobId){
+    JobEntry* last_stopped_job=nullptr;
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        if((*iter)->get_status()==stopped){
+            last_stopped_job=(*iter);
+        }
+    }
+    return last_stopped_job;
 }
 
 void JobsList::removeFinishedJobs(){
@@ -386,6 +391,86 @@ void KillCommand::execute(){
         return;
     }
     cout<< "signal number"<<signal_to_send<<"was sent to pid"<<pid_of_job_to_kill<<endl;
+
+}
+
+void ForegroundCommand::execute(){
+    int job_id_to_fg=jobs->getMaxID();
+    int jobs_max_id=jobs->getMaxID();
+    JobsList::JobEntry* job_to_fg=nullptr;
+    if(num_args>2){
+        std::cout << "smash error: fg: invalid arguments" << endl;
+        return;
+    }
+    if(num_args==1){// there is no arguments beside the command
+        if(jobs_max_id==0){ //jobsList is empty
+            std::cout << "smash error: fg: jobs list is empty" << endl;
+            return;
+        }
+        job_to_fg= this->jobs->getJobById(jobs_max_id);
+    }
+
+    else{
+        job_id_to_fg=atoi (args_of_command[1]);
+        if(job_id_to_fg==0){//format of the id is bad
+            std::cout << "smash error: fg: invalid arguments" << endl;
+            return;
+        }
+
+        job_to_fg= this->jobs->getJobById(job_id_to_fg);
+        if(job_to_fg==nullptr){
+            std::cout << "smash error: fg: job-id "<< job_id_to_fg <<" does not exist"<<endl;
+            return;
+        }
+    }
+    jobs->printSpecificJobByID(job_id_to_fg);
+    //now we need to move  the job to fg
+
+    /*should i do that? //job_to_fg->changeStatus()*/
+    int pid_of_job_to_fg=job_to_fg->get_pid();
+    kill(pid_of_job_to_fg, SIGCONT);
+    if(waitpid(pid_of_job_to_fg,NULL, WUNTRACED)==-1){
+        perror("smash error: wait failed");
+    }
+    jobs->removeJobById(job_id_to_fg);
+}
+
+void BackgroundCommand::execute(){
+    JobsList::JobEntry* job_to_bg=nullptr;
+    int job_id_to_bg;
+    if(num_args>2){
+        std::cout << "smash error: bg: invalid arguments" << endl;
+        return;
+    }
+    if(num_args==1){// there is no arguments beside the command
+        job_to_bg=jobs->getLastStoppedJob(&job_id_to_bg);
+        if(job_to_bg==nullptr){ //no stopped jobs
+            std::cout << "smash error: bg: there is no stopeed jobs to resume" << endl;
+            return;
+        }
+    }
+    else{
+        int job_id_to_bg=atoi (args_of_command[1]);
+        if(job_id_to_bg==0){//format of the id is bad
+            std::cout << "smash error: bg: invalid arguments" << endl;
+            return;
+        }
+        job_to_bg=jobs->getJobById(job_id_to_bg);
+        if(job_to_bg==nullptr){
+            std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" does not exist"<<endl;
+            return;
+        }
+        if(job_to_bg->get_status()==JobsList::stopped){
+            std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" is already running in the backgroung"<<endl;
+        }
+    }
+    jobs->printSpecificJobByID(job_id_to_bg);
+    //now to bring it to bg
+    if(kill(job_id_to_bg,SIGCONT)==-1){
+        perror("smash error: kill failed");
+        return;
+    }
+    job_to_bg->changeStatus(JobsList::background);
 
 }
 

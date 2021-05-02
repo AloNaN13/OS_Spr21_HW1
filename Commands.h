@@ -40,8 +40,10 @@ public:
 };
 
 class ExternalCommand : public Command {
+    JobsList* jobs;
 public:
-    ExternalCommand(const char* cmd_line);
+    ExternalCommand(const char *cmd_line, JobsList *jobsList) :
+            command_line(strdup(cmd_line)), jobs(jobsList) {background=_isBackgroundComamnd(cmd_line);}
     virtual ~ExternalCommand() {}
     void execute() override;
 };
@@ -109,20 +111,23 @@ class QuitCommand : public BuiltInCommand {
 class JobsList {
     int max_id;
 public:
+    enum JobStatus {background,stopped};
     class JobEntry {
+
         // TODO: Add your data members
     public :
         int job_id;
         time_t arrived_time;
-        int job_status; //0 stopeed, 1 running
+        JobStatus job_status;//0 stopeed, 1 running
         Command* command_of_job;
 
 
-        JobEntry(int job_id, time_t arrived_time,int job_status, Command* command_of_job):
+        JobEntry(int job_id, time_t arrived_time,JobStatus job_status, Command* command_of_job):
                 job_id(job_id),arrived_time(arrived_time),job_status(job_status),command_of_job(command_of_job){}
-        int get_status(){return job_status;}
+        JobStatus get_status(){return job_status;}
         int get_job_id(){return job_id;}
         int get_pid(){return command_of_job->getPid();}
+        void changeStatus(JobStatus new_status){job_status=new_status;}
 
 
 
@@ -143,7 +148,8 @@ public:
     // TODO: Add extra methods or modify exisitng ones as needed
     std::vector<JobEntry*> jobs_list;
     void deleteSpecificJobByID(int id_to_delete);
-
+    void printSpecificJobByID(int id_to_print);
+    int getMaxID(){return max_id;};
 };
 
 class JobsCommand : public BuiltInCommand {
@@ -169,15 +175,17 @@ class ForegroundCommand : public BuiltInCommand {
     JobsList* jobs;
 
 public:
-    ForegroundCommand(const char* cmd_line, JobsList* jobs);
+    ForegroundCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line), jobs(jobs){}
     virtual ~ForegroundCommand() {}
     void execute() override;
 };
 
 class BackgroundCommand : public BuiltInCommand {
+    JobsList* jobs;
+
     // TODO: Add your data members
 public:
-    BackgroundCommand(const char* cmd_line, JobsList* jobs);
+    BackgroundCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line), jobs(jobs){}
     virtual ~BackgroundCommand() {}
     void execute() override;
 };
