@@ -141,7 +141,7 @@ public:
     JobEntry * getLastJob(int* lastJobId);
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
-    std::vector<JobEntry> jobs_list;
+    std::vector<JobEntry*> jobs_list;
     void deleteSpecificJobByID(int id_to_delete);
 
 };
@@ -166,6 +166,8 @@ public:
 
 class ForegroundCommand : public BuiltInCommand {
     // TODO: Add your data members
+    JobsList* jobs;
+
 public:
     ForegroundCommand(const char* cmd_line, JobsList* jobs);
     virtual ~ForegroundCommand() {}
