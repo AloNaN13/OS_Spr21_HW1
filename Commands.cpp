@@ -295,8 +295,8 @@ void QuitCommand::execute(){
 }
 JobsList::JobEntry* JobsList::getJobById(int job_id){
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        if(job_id==iter->job_id){
-            return &(*iter);
+        if(job_id==(*iter)->job_id){
+            return (*iter);
         }
     }
     return NULL;
@@ -304,7 +304,7 @@ JobsList::JobEntry* JobsList::getJobById(int job_id){
 }
 void JobsList::deleteSpecificJobByID(int id_to_delete){
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        if(id_to_delete==iter->job_id){
+        if(id_to_delete==(*iter)->job_id){
             jobs_list.erase(iter);
             break;
         }
@@ -316,9 +316,9 @@ void JobsList::deleteSpecificJobByID(int id_to_delete){
 
 void JobsList::removeFinishedJobs(){
     pid_t result_of_wait;
-    std::vector<JobEntry> jobs_to_erase;
+    std::vector<JobEntry*> jobs_to_erase;
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        result_of_wait=waitpid(iter->get_pid(),NULL,WNOHANG);
+        result_of_wait=waitpid((*iter)->get_pid(),NULL,WNOHANG);
         //CHECK IF RESULT WAS BAD
 
         jobs_to_erase.push_back(*iter);
@@ -326,13 +326,13 @@ void JobsList::removeFinishedJobs(){
     //now its time to delete
 
     for(auto iter= jobs_to_erase.begin();iter!=jobs_to_erase.end();++iter){
-        deleteSpecificJobByID(iter->job_id);
+        deleteSpecificJobByID((*iter)->job_id);
     }
     //find max+id
     int max_id=0;
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        if(max_id<iter->job_id){
-            max_id=iter->job_id;
+        if(max_id<(*iter)->job_id){
+            max_id=(*iter)->job_id;
         }
     }
     this->max_id=max_id;
@@ -342,21 +342,50 @@ void JobsList::removeFinishedJobs(){
 void JobsCommand::execute(){
     for(auto iter= jobs->jobs_list.begin();iter!=jobs->jobs_list.end();++iter){
 
-        std::cout<<"["<<iter->get_job_id()<<"] "<<string(iter->command_of_job->getCommandLine())<<" : "<<
-                 iter->get_pid()<<" "<<difftime(time(NULL),iter->arrived_time)<<" secs";
-        if(iter->get_status()==0){ //stoped
+        std::cout<<"["<<(*iter)->get_job_id()<<"] "<<string((*iter)->command_of_job->getCommandLine())<<" : "<<
+                 (*iter)->get_pid()<<" "<<difftime(time(NULL),(*iter)->arrived_time)<<" secs";
+        if((*iter)->get_status()==0){ //stoped
             std::cout<<" (stopped)";
         }
         std::cout<<endl;
     }
 }
 
-/*void KillCommand::execute(){
-  if (num_args!=3){
+void KillCommand::execute(){
+    if (num_args!=3){//check if not
         std::cout<<"smash error: kill: invalid arguments"<<endl;
         return;
-  }
-  JobsList::JobEntry* job_to_kill=getJobById( job_id);
+    }
+    if(this->args_of_command[1][0]!='-'){
+        std::cout<<"smash error: kill: invalid arguments"<<endl;
+        return;
+    }
 
-}*/
+    int signal_to_send =atoi ((args_of_command[1]+1));
+    //shou i check that signal to send consists only of numbers
+
+    int job_id=atoi (args_of_command[2]);
+    if(job_id==0 ||signal_to_send==0){ //the string of job id or of signal doesn't consists of numbers
+        std::cout<<"smash error: kill: invalid arguments"<<endl;
+        return;
+    }
+    if(signal_to_send<1||signal_to_send>31){
+        std::cout<<"smash error: kill: invalid arguments"<<endl;
+        return;
+    }
+
+
+    JobsList::JobEntry* job_to_kill= this->jobs->getJobById(job_id);
+    if (job_to_kill==NULL){//there is no such job
+        std::cout<<"smash error: kill: job-id" << job_id << "does not exist"<<endl;
+        return;
+    }
+    pid_t pid_of_job_to_kill=job_to_kill->get_pid();
+    if(kill(pid, signal_to_send)!=0){
+        perror("smash error: kill failed");
+        return;
+    }
+    cout<< "signal number"<<signal_to_send<<"was sent to pid"<<pid_of_job_to_kill<<endl;
+
+}
 
