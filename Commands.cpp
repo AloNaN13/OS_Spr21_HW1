@@ -361,9 +361,9 @@ void ShowPidCommand::execute(){
 
 QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs), to_kill(false){
     //assert(jobs);
-    for(int i=1; i < args_len; ++i){
-        if(!strcmp(args[i], "kill")){
-            to_kill == true;
+    for(int i=1; i < num_args; ++i){
+        if(!strcmp(args_of_command[i], "kill")){
+            to_kill = true;
         }
     }
 }
