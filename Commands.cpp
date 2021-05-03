@@ -385,7 +385,7 @@ void JobsList::killJobs() {
         if(kill(pid, SIGKILL) == -1){
             perror("smash error: kill failed"); // ok to do so? needed?
         }
-        std::cout << pid << ": " << iter->command << endl; // check the commmand???
+        std::cout << pid << ": " << iter->command_of_job->getCommandLine() << endl;
     }
     jobsList.clear();
 }
