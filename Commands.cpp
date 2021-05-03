@@ -1,3 +1,5 @@
+
+
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
@@ -93,6 +95,7 @@ SmallShell::~SmallShell() {
 * Creates and returns a pointer to Command class which matches the given command line (cmd_line)
 */
 Command * SmallShell::CreateCommand(const char* cmd_line) {
+
     // For example:
 /*
   string cmd_s = _trim(string(cmd_line));
@@ -110,15 +113,55 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     return new ExternalCommand(cmd_line);
   }
   */
+
+
+
+
+    //took from idan, need to change later, just want to see if the functions work
+    string cmd_s = string(cmd_line);
+    _ltrim(cmd_s);
+    if (cmd_s.find("chprompt") == 0) {
+        return new ChangePromptCommand(cmd_line);
+    }//else if (cmd_s.find("ls") == 0) {
+        //return new ListCommand(cmd_line);}
+    else if (cmd_s.find("showpid") == 0) {
+        return new ShowPidCommand(cmd_line);
+    } else if (cmd_s.find("pwd") == 0) {
+        return new GetCurrDirCommand(cmd_line);
+    } /*else if (cmd_s.find("cd") == 0) {
+        return new ChangeDirCommand(cmd_line, &lastPWD);
+    } else if (cmd_s.find("jobs") == 0) {
+        return new JobsCommand(cmd_line, &jobList);
+    } else if (cmd_s.find("kill") == 0) {
+        return new KillCommand(cmd_line, &jobList);
+    } else if (cmd_s.find("fg") == 0) {
+        return new ForegroundCommand(cmd_line, &jobList);
+    } else if (cmd_s.find("bg") == 0) {
+        return new BackgroundCommand(cmd_line, &jobList);
+    } else if (cmd_s.find("cp") == 0) {
+        return new CopyCommand(cmd_line, &jobList);
+    } else if (cmd_s.find("quit") == 0) {
+        return new QuitCommand(cmd_line, &jobList);
+    } else {
+        return new ExternalCommand(cmd_line, &jobList);//need to deal with this
+    }*/
+
     return nullptr;
 }
+
+
+
+
+
+
 
 void SmallShell::executeCommand(const char *cmd_line) {
     /** delete done gobs*/
 
-    int index_of_first_space= get_index_of_first_space_in_command (cmd_line);
+    /*int index_of_first_space= get_index_of_first_space_in_command (cmd_line);
     string full_coammand(cmd_line);
-    string first_word=full_coammand.substr(0,index_of_first_space);
+    string first_word=full_coammand.substr(0,index_of_first_space);*/
+
 
 
 
@@ -130,6 +173,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // Command* cmd = CreateCommand(cmd_line);
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
+
+    Command* cmd = CreateCommand(cmd_line);
+    cmd->execute();
 }
 
 
@@ -187,7 +233,18 @@ int execute_built_in_commands (const char *cmd_line,string first_word){
 
 }
 
+/*Functions of command*/
 
+Command::Command(const char* cmd_line)/*: pid(0),args_of_command(new char* [COMMAND_MAX_ARGS])*/ {
+
+    background=_isBackgroundComamnd(cmd_line);
+    num_args=_parseCommandLine(cmd_line,args_of_command);
+    this->pid=getpid();
+
+}
+Command::~Command(){
+    //delete [] args_of_command;
+}
 
 /*implementation of built in commands*/
 
@@ -219,7 +276,8 @@ ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** lastPwd)
     }
 
     // we got exaclty one argument
-    if(args_of_command[1]=="-"){
+    //if(args_of_command[1]=="-"){
+    if(strcmp(args_of_command[1],"-")==0){
         if(*lastPwd==NULL){
             std::cout<<"smash error: cd: OLDPWD not set"<<endl;
             return;
@@ -243,18 +301,32 @@ ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** lastPwd)
     }
 
 }
+
 ChangePromptCommand::ChangePromptCommand(const char* cmd_line):
         BuiltInCommand(cmd_line){
+
     if(num_args>=2){
-        new_prompt=args_of_command[1];
+        this->new_prompt=args_of_command[1];
+        std::cout << "check prompt" << endl;
+        std::cout << this->new_prompt << endl;
+
     }
     else{//need to reser the promt
-        new_prompt="smash";
+        this->new_prompt="smash";
 
     }
 
 
 }
+void ChangePromptCommand::execute(){
+    std::cout << "check" << endl;
+
+    SmallShell::getInstance().changePromtString(this->new_prompt );
+
+
+
+}
+
 
 void ChangeDirCommand::execute(){
     if (chdir(new_dir)!=0) {//if chdir wasn't succcesfull
@@ -262,6 +334,11 @@ void ChangeDirCommand::execute(){
     }
 
 }
+GetCurrDirCommand:: GetCurrDirCommand(const char* cmd_line):BuiltInCommand(cmd_line){
+
+
+}
+
 
 void GetCurrDirCommand::execute(){
     char *current_dir_name = get_current_dir_name();
@@ -270,6 +347,10 @@ void GetCurrDirCommand::execute(){
     free(current_dir_name);
 
 }
+ShowPidCommand:: ShowPidCommand(const char* cmd_line):BuiltInCommand(cmd_line){
+
+}
+
 void ShowPidCommand::execute(){
     //pid_t pid = getpid();
     std::cout<< " smash pid is "<<this->pid<<endl;
@@ -279,6 +360,7 @@ void ShowPidCommand::execute(){
 void QuitCommand::execute(){
 
 }
+
 JobsList::JobEntry* JobsList::getJobById(int job_id){
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
         if(job_id==(*iter)->job_id){
@@ -288,7 +370,8 @@ JobsList::JobEntry* JobsList::getJobById(int job_id){
     return NULL;
 
 }
-void JobsList::deleteSpecificJobByID(int id_to_delete){
+
+void JobsList::removeJobById(int id_to_delete){
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
         if(id_to_delete==(*iter)->job_id){
             jobs_list.erase(iter);
@@ -299,6 +382,7 @@ void JobsList::deleteSpecificJobByID(int id_to_delete){
 
     }
 }
+
 void JobsList::printSpecificJobByID(int id_to_print){
     for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
         if(id_to_print==(*iter)->job_id){
@@ -331,7 +415,7 @@ void JobsList::removeFinishedJobs(){
     //now its time to delete
 
     for(auto iter= jobs_to_erase.begin();iter!=jobs_to_erase.end();++iter){
-        deleteSpecificJobByID((*iter)->job_id);
+        removeJobById((*iter)->job_id);
     }
     //find max+id
     int max_id=0;
@@ -426,7 +510,6 @@ void ForegroundCommand::execute(){
     jobs->printSpecificJobByID(job_id_to_fg);
     //now we need to move  the job to fg
 
-    /*should i do that? //job_to_fg->changeStatus()*/
     int pid_of_job_to_fg=job_to_fg->get_pid();
     kill(pid_of_job_to_fg, SIGCONT);
     if(waitpid(pid_of_job_to_fg,NULL, WUNTRACED)==-1){
@@ -471,6 +554,5 @@ void BackgroundCommand::execute(){
         return;
     }
     job_to_bg->changeStatus(JobsList::background);
-
 }
 

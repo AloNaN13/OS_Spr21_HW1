@@ -7,22 +7,25 @@
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+using std::string;
 
+class JobsList;
 class Command {
 
 
 protected:
+    char* args_of_command[COMMAND_MAX_ARGS];
     pid_t pid;
     const char* command_line;
     //int job_id;
     bool background;
-    char* args_of_command[COMMAND_MAX_ARGS];
+
     int num_args;
 
 // TODO: Add your data members
 
 public:
-    Command(const char* cmd_line):command_line(cmd_line){};
+    Command(const char* cmd_line);
     virtual ~Command();
     virtual void execute() = 0;
     const char* getCommandLine(){return command_line;}
@@ -42,8 +45,7 @@ public:
 class ExternalCommand : public Command {
     JobsList* jobs;
 public:
-    ExternalCommand(const char *cmd_line, JobsList *jobsList) :
-            command_line(strdup(cmd_line)), jobs(jobsList) {background=_isBackgroundComamnd(cmd_line);}
+    ExternalCommand(const char *cmd_line, JobsList *jobsList);
     virtual ~ExternalCommand() {}
     void execute() override;
 };
@@ -67,10 +69,10 @@ public:
 };
 
 class ChangePromptCommand : public BuiltInCommand{
-    string new_prompt;
 public:
+    string new_prompt;
     ChangePromptCommand(const char* cmd_line);
-    virtual ~ChangePromptCommand() {};
+    virtual ~ChangePromptCommand() {}
     void execute() override;
 };
 
@@ -97,7 +99,6 @@ public:
     void execute() override;
 };
 
-class JobsList;
 class QuitCommand : public BuiltInCommand {
 // TODO: Add your data members public:
     QuitCommand(const char* cmd_line, JobsList* jobs);
@@ -147,7 +148,7 @@ public:
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
     std::vector<JobEntry*> jobs_list;
-    void deleteSpecificJobByID(int id_to_delete);
+    //void deleteSpecificJobByID(int id_to_delete);
     void printSpecificJobByID(int id_to_print);
     int getMaxID(){return max_id;};
 };
@@ -201,7 +202,8 @@ public:
 class SmallShell {
 private:
     // TODO: Add your data members
-    char* last_direction_command; //for the cd command
+    char* last_direction_command;
+    string current_promt; //for the cd command
 
 
 
@@ -220,6 +222,10 @@ public:
     ~SmallShell();
     void executeCommand(const char* cmd_line);
     // TODO: add extra methods as needed
+    void changePromtString(string new_prompt){
+        this->current_promt=new_prompt;
+    }
+    string getCurrentPrompt(){return this->current_promt;}
 };
 
 #endif //SMASH_COMMAND_H_
