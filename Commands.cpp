@@ -236,10 +236,14 @@ int execute_built_in_commands (const char *cmd_line,string first_word){
 
 /*Functions of command*/
 
-Command::Command(const char* cmd_line)/*: pid(0),args_of_command(new char* [COMMAND_MAX_ARGS])*/ {
+Command::Command(const char* cmd_line) {
+
 
     background=_isBackgroundComamnd(cmd_line);
-    num_args=_parseCommandLine(cmd_line,args_of_command);
+    char* cmd_line_without_background_sign=strdup(cmd_line);
+    num_args=_parseCommandLine(cmd_line_without_background_sign,args_of_command);
+
+    //free cmd_line_without_background_sign?i
     this->pid=getpid();
 
 }
@@ -322,7 +326,8 @@ ChangePromptCommand::ChangePromptCommand(const char* cmd_line):
 void ChangePromptCommand::execute(){
     std::cout << "check" << endl;
 
-    SmallShell::getInstance().changePromtString(this->new_prompt );
+    SmallShell::getInstance().current_promt= string(this->new_prompt );
+    std::cout << SmallShell::getInstance().current_promt << endl;
 
 
 
@@ -585,3 +590,42 @@ void BackgroundCommand::execute(){
     job_to_bg->changeStatus(JobsList::background);
 }
 
+//EXTERNAL COMMANDS
+
+void ExternalCommand::execute() {
+
+    /*char *command = new char[COMMAND_ARGS_MAX_LENGTH + 1];
+    strcpy(command, command_line);
+    _removeBackgroundSign(command);*/
+
+
+    pid_t pid_of_fork=fork();
+    if(pid_of_fork==0){ //young boy
+        //ADD CODE
+        execl("/bin/bash", "bash", "-c", command_line, NULL);
+        perror("smash error: exec failed");
+        //delete[] command;
+        return;
+
+    }else if (pid < 0){ //error
+        perror("smash error: fork failed");
+        return;
+    }
+    else{//parent
+        this->pid=pid_of_fork; //the pid of external command=pid of son
+        if( background==true){
+            //add to job list
+            //SmallShell::getInstance().
+
+
+        }
+        else {//background==false
+            if(waitpid(pid_of_fork,NULL,WUNTRACED)<0){
+                perror("smash error: waitpid failed");
+            }
+
+        }
+
+    }
+
+//SPECIAL COMMANDS

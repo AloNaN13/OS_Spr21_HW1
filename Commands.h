@@ -45,7 +45,7 @@ public:
 class ExternalCommand : public Command {
     JobsList* jobs;
 public:
-    ExternalCommand(const char *cmd_line, JobsList *jobsList);
+    ExternalCommand(const char *cmd_line, JobsList *jobsList):Command(cmd_line), jobs(jobs){}
     virtual ~ExternalCommand() {}
     void execute() override;
 };
@@ -205,6 +205,8 @@ public:
 class SmallShell {
 private:
     // TODO: Add your data members
+public:
+    JobsList* jobs;
     char* last_direction_command;
     string current_promt; //for the cd command
 
