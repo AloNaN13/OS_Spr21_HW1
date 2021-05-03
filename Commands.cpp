@@ -1,5 +1,6 @@
 
 
+#include <cassert.h>
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
@@ -339,11 +340,11 @@ void ChangeDirCommand::execute(){
     }
 
 }
+
 GetCurrDirCommand:: GetCurrDirCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
 
 }
-
 
 void GetCurrDirCommand::execute(){
     char *current_dir_name = get_current_dir_name();
@@ -352,6 +353,7 @@ void GetCurrDirCommand::execute(){
     free(current_dir_name);
 
 }
+
 ShowPidCommand:: ShowPidCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
 }
@@ -362,8 +364,35 @@ void ShowPidCommand::execute(){
 }
 
 
-void QuitCommand::execute(){
+QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs), to_kill(false){
+    //assert(jobs);
+    for(int i=1; i < args_len; ++i){
+        if(!strcmp(args[i], "kill")){
+            to_kill == true;
+        }
+    }
+}
 
+void QuitCommand::execute(){
+    if(to_kill) {
+        //(assert(jobs_list));
+        jobs_list->killJobs();
+    }
+    exit(0); // correct way to exit?
+}
+
+void JobsList::killJobs() {
+    // loop to kill all jobs
+    int jobs_num = jobs_list.size();
+    std::cout << "smash: sending SIGKILL signal to " << jobs_num << " jobs:" << endl;
+    for (auto iter = jobs_list.begin(); iter != jobs_list.end(); ++iter) {
+        pid_t pid = iter->pid;
+        if(kill(pid, SIGKILL) == -1){
+            perror("smash error: kill failed"); // ok to do so? needed?
+        }
+        std::cout << pid << ": " << iter->command_of_job->getCommandLine() << endl;
+    }
+    jobsList.clear();
 }
 
 JobsList::JobEntry* JobsList::getJobById(int job_id){

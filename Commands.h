@@ -100,8 +100,11 @@ public:
 };
 
 class QuitCommand : public BuiltInCommand {
-// TODO: Add your data members public:
-    QuitCommand(const char* cmd_line, JobsList* jobs);
+// TODO: Add your data members
+    JobsList* jobs_list;
+    bool to_kill;
+public:
+    QuitCommand(const char* cmd_line, JobsList* jobs, bool to_kill);
     virtual ~QuitCommand() {}
     void execute() override;
 };
@@ -140,7 +143,7 @@ public:
     ~JobsList();
     void addJob(Command* cmd, bool isStopped = false);
     void printJobsList();
-    void killAllJobs();
+    void killJobs();
     void removeFinishedJobs();
     JobEntry * getJobById(int jobId);
     void removeJobById(int jobId);
