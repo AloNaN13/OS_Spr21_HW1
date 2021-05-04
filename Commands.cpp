@@ -323,7 +323,7 @@ QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs, bool to_kill) : B
     //assert(jobs);
     for(int i=1; i < num_args; ++i){
         if(!strcmp(args_of_command[i], "kill")){
-            to_kill == true;
+            to_kill = true;
         }
     }
 }
