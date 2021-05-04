@@ -130,22 +130,22 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
         return new GetCurrDirCommand(cmd_line);
     } else if (cmd_s.find("cd") == 0) {
         return new ChangeDirCommand(cmd_line, &(this->last_direction_command));
-    }/* else if (cmd_s.find("jobs") == 0) {
-        return new JobsCommand(cmd_line, &jobList);
+    }else if (cmd_s.find("jobs") == 0) {
+        return new JobsCommand(cmd_line,  this->jobs);
     } else if (cmd_s.find("kill") == 0) {
-        return new KillCommand(cmd_line, &jobList);
+        return new KillCommand(cmd_line, this->jobs);
     } else if (cmd_s.find("fg") == 0) {
-        return new ForegroundCommand(cmd_line, &jobList);
+        return new ForegroundCommand(cmd_line, this->jobs);
     } else if (cmd_s.find("bg") == 0) {
-        return new BackgroundCommand(cmd_line, &jobList);
-    } else if (cmd_s.find("cp") == 0) {
-        return new CopyCommand(cmd_line, &jobList);
+        return new BackgroundCommand(cmd_line, this->jobs);
     } else if (cmd_s.find("quit") == 0) {
-        return new QuitCommand(cmd_line, &jobList);
-    } */else {
+        return new QuitCommand(cmd_line,this->jobs );
+    } else {
         return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
     }
 
+
+    //need to add special commands
     return nullptr;
 }
 
@@ -319,7 +319,7 @@ void ShowPidCommand::execute(){
 }
 
 
-QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs, bool to_kill) : BuiltInCommand(cmd_line), jobs_list(jobs), to_kill(false){
+QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs), to_kill(false){
     //assert(jobs);
     for(int i=1; i < num_args; ++i){
         if(!strcmp(args_of_command[i], "kill")){

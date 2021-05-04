@@ -105,7 +105,7 @@ class QuitCommand : public BuiltInCommand {
     JobsList* jobs_list;
     bool to_kill;
 public:
-    QuitCommand(const char* cmd_line, JobsList* jobs, bool to_kill);
+    QuitCommand(const char* cmd_line, JobsList* jobs);
     virtual ~QuitCommand() {}
     void execute() override;
 };
