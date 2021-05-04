@@ -84,7 +84,7 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h
 
-SmallShell::SmallShell():current_promt("smash") {
+SmallShell::SmallShell():current_promt("smash"),curr_external_fg_command(nullptr) {
 // TODO: add your implementation
 }
 
@@ -142,9 +142,9 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
         return new CopyCommand(cmd_line, &jobList);
     } else if (cmd_s.find("quit") == 0) {
         return new QuitCommand(cmd_line, &jobList);
-    } else {
-        return new ExternalCommand(cmd_line, &jobList);//need to deal with this
-    }*/
+    } */else {
+        return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
+    }
 
     return nullptr;
 }
@@ -175,6 +175,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 
     Command* cmd = CreateCommand(cmd_line);
+    if(cmd==nullptr){
+        return;
+    }
     cmd->execute();
 }
 
@@ -191,56 +194,17 @@ int get_index_of_first_space_in_command(const char *cmd_line){
     return i;
 }
 
-int execute_built_in_commands (const char *cmd_line,string first_word){
-    if(first_word==string("chpromt")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("showpid")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("pwd")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("cd")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("jobs")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("kill")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("fg")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("bg")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    if(first_word==string("quit")){
-        /*letapel bapkuda*/
-        return 1;
-    }
-    return -1;
 
-
-}
 
 /*Functions of command*/
 
-Command::Command(const char* cmd_line) {
+Command::Command(const char* cmd_line): command_line(cmd_line) {
 
 
     background=_isBackgroundComamnd(cmd_line);
     char* cmd_line_without_background_sign=strdup(cmd_line);
     num_args=_parseCommandLine(cmd_line_without_background_sign,args_of_command);
+
 
     //free cmd_line_without_background_sign?i
     this->pid=getpid();
@@ -321,8 +285,6 @@ ChangePromptCommand::ChangePromptCommand(const char* cmd_line):
 
 }
 void ChangePromptCommand::execute(){
-
-
     SmallShell::getInstance().current_promt= string(this->new_prompt );
 }
 
@@ -373,6 +335,8 @@ void QuitCommand::execute(){
     }
     exit(0); // correct way to exit?
 }
+
+
 /////////////////////////////////////////functions of jobslist
 
 void JobsList::killJobs() {
@@ -405,9 +369,6 @@ void JobsList::removeJobById(int id_to_delete){
             jobs_list.erase(iter);
             break;
         }
-
-
-
     }
 }
 
@@ -438,6 +399,7 @@ void JobsList::removeFinishedJobs(){
         result_of_wait=waitpid((*iter)->get_pid(),NULL,WNOHANG);
         //CHECK IF RESULT WAS BAD
 
+        //NEED TO CHEK IT BEFORE WE PUSH IT?
         jobs_to_erase.push_back(*iter);
     }
     //now its time to delete
@@ -455,10 +417,23 @@ void JobsList::removeFinishedJobs(){
     this->max_id=max_id;
 }
 
-/*void JobsList::addJob(Command* cmd, bool isStopped = false){
+void JobsList::addJob(Command* cmd, bool isStopped ){
+    int id_of_added_job=this->getMaxID()+1;
+    JobStatus status_of_job;
+    if (isStopped) {
+        status_of_job = stopped;
+    } else {
+        status_of_job = running;
+    }
 
 
-}*/
+    JobsList::JobEntry* job_to_add =
+            new JobsList::JobEntry(id_of_added_job,time(NULL),status_of_job,(cmd));
+    jobs_list.push_back(job_to_add);
+
+
+
+}
 
 
 
@@ -545,12 +520,15 @@ void ForegroundCommand::execute(){
     jobs->printSpecificJobByID(job_id_to_fg);
     //now we need to move  the job to fg
 
+    SmallShell::getInstance().curr_external_fg_command=job_to_fg->command_of_job;
     int pid_of_job_to_fg=job_to_fg->get_pid();
     kill(pid_of_job_to_fg, SIGCONT);
     if(waitpid(pid_of_job_to_fg,NULL, WUNTRACED)==-1){
         perror("smash error: wait failed");
     }
     jobs->removeJobById(job_id_to_fg);
+    //  (SmallShell::getInstance().cur_fg_job) = nullptr;
+
 }
 
 void BackgroundCommand::execute(){
@@ -588,7 +566,7 @@ void BackgroundCommand::execute(){
         perror("smash error: kill failed");
         return;
     }
-    job_to_bg->changeStatus(JobsList::background);
+    job_to_bg->changeStatus(JobsList::running);
 }
 
 //EXTERNAL COMMANDS
@@ -599,11 +577,19 @@ void ExternalCommand::execute() {
     strcpy(command, command_line);
     _removeBackgroundSign(command);*/
 
+    //from yuval change check if works
+
+    char *cleancommand=strdup(command_line);
+    _removeBackgroundSign(cleancommand);
+    char* const args_for_exec[]={(char*)"/bin/bash",(char*)"-c",cleancommand,NULL};
+
 
     pid_t pid_of_fork=fork();
     if(pid_of_fork==0){ //young boy
-        //ADD CODE
-        execl("/bin/bash", "bash", "-c", command_line, NULL);
+        setpgrp();
+        /*execl("/bin/bash", "bash", "-c", command_line, NULL);*/
+
+        execv("/bin/bash",args_for_exec);
         perror("smash error: exec failed");
         //delete[] command;
         return;
@@ -617,17 +603,15 @@ void ExternalCommand::execute() {
         if( background==true){
             //we need to add to job list
             int id_of_add_job=jobs->getMaxID()+1;
-            //JobsList::JobEntry* job_to_add =
-            //    new JobsList::JobEntry(id_of_add_job,this->command_line, pid,background);
-            //SmallShell::getInstance().
-
+            jobs->addJob(this,JobsList::running);
 
         }
         else {//background==false
+            SmallShell::getInstance().curr_external_fg_command=this;//this cmmand now runs in the foregroung
             if(waitpid(pid_of_fork,NULL,WUNTRACED)<0){
                 perror("smash error: waitpid failed");
             }
-
+            SmallShell::getInstance().curr_external_fg_command=nullptr;
         }
 
     }

@@ -116,7 +116,7 @@ public:
 class JobsList {
     int max_id;
 public:
-    enum JobStatus {stopped,background};
+    enum JobStatus {stopped,running};
     class JobEntry {
 
         // TODO: Add your data members
@@ -210,9 +210,7 @@ public:
     JobsList* jobs;
     char* last_direction_command;
     string current_promt; //for the cd command
-
-
-
+    Command* curr_external_fg_command;
 
     SmallShell();
 public:
