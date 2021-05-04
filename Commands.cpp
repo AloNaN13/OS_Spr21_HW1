@@ -1,6 +1,6 @@
 
 
-#include <cassert.h>
+//#include <cassert.h>
 #include <unistd.h>
 #include <string.h>
 #include <iostream>
@@ -84,7 +84,7 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h
 
-SmallShell::SmallShell() {
+SmallShell::SmallShell():current_promt("smash") {
 // TODO: add your implementation
 }
 
@@ -123,15 +123,14 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     _ltrim(cmd_s);
     if (cmd_s.find("chprompt") == 0) {
         return new ChangePromptCommand(cmd_line);
-    }//else if (cmd_s.find("ls") == 0) {
-        //return new ListCommand(cmd_line);}
+    }
     else if (cmd_s.find("showpid") == 0) {
         return new ShowPidCommand(cmd_line);
     } else if (cmd_s.find("pwd") == 0) {
         return new GetCurrDirCommand(cmd_line);
-    } /*else if (cmd_s.find("cd") == 0) {
-        return new ChangeDirCommand(cmd_line, &lastPWD);
-    } else if (cmd_s.find("jobs") == 0) {
+    } else if (cmd_s.find("cd") == 0) {
+        return new ChangeDirCommand(cmd_line, &(this->last_direction_command));
+    }/* else if (cmd_s.find("jobs") == 0) {
         return new JobsCommand(cmd_line, &jobList);
     } else if (cmd_s.find("kill") == 0) {
         return new KillCommand(cmd_line, &jobList);
@@ -255,9 +254,9 @@ Command::~Command(){
 
 
 BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line){
-    char *dup_cmd_line = strdup(cmd_line);
+    /*char *dup_cmd_line = strdup(cmd_line);
     _removeBackgroundSign(dup_cmd_line);
-    num_args = _parseCommandLine(dup_cmd_line, args_of_command);
+    num_args = _parseCommandLine(dup_cmd_line, args_of_command);*/
     //this was for the basic commands
 
 
@@ -271,12 +270,12 @@ ChangeDirCommand::ChangeDirCommand(const char* cmd_line, char** lastPwd)
 
     char* current_dir = get_current_dir_name();//for the case of no arguments
     new_dir=current_dir; //deafault
-    if(num_args>=2){     //to much arguments
+    if(num_args>2){     //to much arguments
         std::cout<<"smash error: cd: too many arguments"<<endl;
         return;
     }
 
-    else if(num_args==0){
+    else if(num_args==1){
         return;
     }
 
@@ -312,8 +311,6 @@ ChangePromptCommand::ChangePromptCommand(const char* cmd_line):
 
     if(num_args>=2){
         this->new_prompt=args_of_command[1];
-        std::cout << "check prompt" << endl;
-        std::cout << this->new_prompt << endl;
 
     }
     else{//need to reser the promt
@@ -324,13 +321,9 @@ ChangePromptCommand::ChangePromptCommand(const char* cmd_line):
 
 }
 void ChangePromptCommand::execute(){
-    std::cout << "check" << endl;
+
 
     SmallShell::getInstance().current_promt= string(this->new_prompt );
-    std::cout << SmallShell::getInstance().current_promt << endl;
-
-
-
 }
 
 
@@ -364,10 +357,10 @@ void ShowPidCommand::execute(){
 }
 
 
-QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(cmd_line), jobs_list(jobs), to_kill(false){
+QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs, bool to_kill) : BuiltInCommand(cmd_line), jobs_list(jobs), to_kill(false){
     //assert(jobs);
-    for(int i=1; i < args_len; ++i){
-        if(!strcmp(args[i], "kill")){
+    for(int i=1; i < num_args; ++i){
+        if(!strcmp(args_of_command[i], "kill")){
             to_kill == true;
         }
     }
@@ -380,19 +373,20 @@ void QuitCommand::execute(){
     }
     exit(0); // correct way to exit?
 }
+/////////////////////////////////////////functions of jobslist
 
 void JobsList::killJobs() {
     // loop to kill all jobs
     int jobs_num = jobs_list.size();
     std::cout << "smash: sending SIGKILL signal to " << jobs_num << " jobs:" << endl;
     for (auto iter = jobs_list.begin(); iter != jobs_list.end(); ++iter) {
-        pid_t pid = iter->pid;
+        pid_t pid = (*iter)->get_pid();
         if(kill(pid, SIGKILL) == -1){
             perror("smash error: kill failed"); // ok to do so? needed?
         }
-        std::cout << pid << ": " << iter->command_of_job->getCommandLine() << endl;
+        std::cout << pid << ": " << (*iter)->command_of_job->getCommandLine() << endl;
     }
-    jobsList.clear();
+    jobs_list.clear();
 }
 
 JobsList::JobEntry* JobsList::getJobById(int job_id){
@@ -460,6 +454,13 @@ void JobsList::removeFinishedJobs(){
     }
     this->max_id=max_id;
 }
+
+/*void JobsList::addJob(Command* cmd, bool isStopped = false){
+
+
+}*/
+
+
 
 
 void JobsCommand::execute(){
@@ -614,7 +615,10 @@ void ExternalCommand::execute() {
     else{//parent
         this->pid=pid_of_fork; //the pid of external command=pid of son
         if( background==true){
-            //add to job list
+            //we need to add to job list
+            int id_of_add_job=jobs->getMaxID()+1;
+            //JobsList::JobEntry* job_to_add =
+            //    new JobsList::JobEntry(id_of_add_job,this->command_line, pid,background);
             //SmallShell::getInstance().
 
 
@@ -627,5 +631,6 @@ void ExternalCommand::execute() {
         }
 
     }
+}
 
 //SPECIAL COMMANDS

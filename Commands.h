@@ -80,6 +80,7 @@ class ChangeDirCommand : public BuiltInCommand {
     char* new_dir;
 
 // TODO: Add your data members public:
+public:
     ChangeDirCommand(const char* cmd_line, char** plastPwd);
     virtual ~ChangeDirCommand() {}
     void execute() override;
@@ -115,7 +116,7 @@ public:
 class JobsList {
     int max_id;
 public:
-    enum JobStatus {background,stopped};
+    enum JobStatus {stopped,background};
     class JobEntry {
 
         // TODO: Add your data members
