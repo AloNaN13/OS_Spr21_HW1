@@ -11,6 +11,9 @@
 
 #define COMMAND_ARGS_MAX_LENGTH (200)
 #define COMMAND_MAX_ARGS (20)
+
+enum specialType {NOT_SPECIAL, OVERRIDE, APPEND, STDOUT, STDERR};
+
 using std::string;
 
 class JobsList;
@@ -37,6 +40,7 @@ public:
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
+    specialType checkSpecialType(int* char_loc);
 };
 
 class BuiltInCommand : public Command {

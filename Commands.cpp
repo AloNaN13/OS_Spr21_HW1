@@ -671,7 +671,31 @@ void ExternalCommand::execute() {
 //SPECIAL COMMANDS
 
 
+specialType Command::checkSpecialType(int* char_loc){
 
+    // return to pointer the location of the char
+    // loop to check if any char criteria is met (pipeType)
+    // change specialType according to enum
+
+    for(int i = 0; i < num_args;++i){
+        *char_loc = i;
+        if(!strcmp(args_of_command[i],">")){
+            return OVERRIDE;
+        }
+        else if(!strcmp(args_of_command[i],">>")){
+            return APPEND;
+        }
+        else if(!strcmp(args_of_command[i],"|")){
+            return STDOUT;
+        }
+        else if(!strcmp(args_of_command[i],"|&")){
+            return STDERR;
+        }
+    }
+    *char_loc = -1;
+    return NOT_SPECIAL;
+
+}
 
 CatCommand::CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
