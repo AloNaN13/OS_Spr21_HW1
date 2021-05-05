@@ -1,6 +1,10 @@
 #ifndef SMASH_COMMAND_H_
 #define SMASH_COMMAND_H_
 
+
+
+#include <unistd.h>
+#include <ostream>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -230,6 +234,25 @@ public:
         this->current_promt=new_prompt;
     }
     string getCurrentPrompt(){return this->current_promt;}
+};
+
+class TimeOutList{
+    class TimeOutEntry{
+    public:
+        time_t insertion_time;
+        pid_t pid_of_the_time_entry;
+        int duration_left;
+
+        TimeOutEntry(time_t insertion_time, pid_t pid,int duration_left):
+                insertion_time(insertion_time),pid_of_the_time_entry(pid), duration_left(duration_left) {}
+        ~TimeOutEntry(){}
+
+    };
+
+
+
+    std::vector<TimeOutEntry*> TimeOuts_list;
+
 };
 
 #endif //SMASH_COMMAND_H_

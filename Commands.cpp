@@ -8,7 +8,10 @@
 #include <sstream>
 #include <sys/wait.h>
 #include <iomanip>
+#include <sys/file.h>
+#include <stdio.h>
 #include "Commands.h"
+
 
 using namespace std;
 
@@ -84,7 +87,7 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h
 
-SmallShell::SmallShell():current_promt("smash"),curr_external_fg_command(nullptr) {
+SmallShell::SmallShell():jobs(new JobsList()),current_promt("smash"),curr_external_fg_command(nullptr) {
 // TODO: add your implementation
 }
 
@@ -143,6 +146,33 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     } else {
         return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
     }
+
+
+
+    /* string cmd_s = _trim(string(cmd_line));
+     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+
+     if (firstWord.compare("chprompt") == 0) {
+         return new ChangePromptCommand(cmd_line);
+     } else if (firstWord.compare("showpid") == 0) {
+         return new ShowPidCommand(cmd_line);
+     } else if (firstWord.compare("pwd") == 0) {
+          return new GetCurrDirCommand(cmd_line);
+     }else if (firstWord.compare("cd") == 0) {
+         return new ChangeDirCommand(cmd_line, &(this->last_direction_command));
+     }else if (firstWord.compare("jobs") == 0) {
+         return new JobsCommand(cmd_line,  this->jobs);
+     }else if (firstWord.compare("kill") == 0) {
+         return new KillCommand(cmd_line, this->jobs);
+     } else if (firstWord.compare("fg") == 0) {
+         return new ForegroundCommand(cmd_line, this->jobs);
+     } else if (firstWord.compare("bg") == 0) {
+         return new BackgroundCommand(cmd_line, this->jobs);
+     } else if (firstWord.compare("quit") == 0) {
+         return new QuitCommand(cmd_line,this->jobs );
+     } else {
+         return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
+     }*/
 
 
     //need to add special commands
@@ -339,6 +369,7 @@ void QuitCommand::execute(){
 
 /////////////////////////////////////////functions of jobslist
 
+JobsList::JobsList():jobs_list(vector <JobEntry*> ()),max_id(0){}
 void JobsList::killJobs() {
     // loop to kill all jobs
     int jobs_num = jobs_list.size();
@@ -427,9 +458,11 @@ void JobsList::addJob(Command* cmd, bool isStopped ){
     }
 
 
+
     JobsList::JobEntry* job_to_add =
             new JobsList::JobEntry(id_of_added_job,time(NULL),status_of_job,(cmd));
     jobs_list.push_back(job_to_add);
+    SmallShell::getInstance().jobs->max_id=id_of_added_job;
 
 
 
@@ -573,40 +606,58 @@ void BackgroundCommand::execute(){
 
 void ExternalCommand::execute() {
 
+
     /*char *command = new char[COMMAND_ARGS_MAX_LENGTH + 1];
     strcpy(command, command_line);
     _removeBackgroundSign(command);*/
 
     //from yuval change check if works
 
+
     char *cleancommand=strdup(command_line);
     _removeBackgroundSign(cleancommand);
+
     char* const args_for_exec[]={(char*)"/bin/bash",(char*)"-c",cleancommand,NULL};
 
 
     pid_t pid_of_fork=fork();
     if(pid_of_fork==0){ //young boy
+
         setpgrp();
+
         /*execl("/bin/bash", "bash", "-c", command_line, NULL);*/
 
-        execv("/bin/bash",args_for_exec);
-        perror("smash error: exec failed");
-        //delete[] command;
-        return;
+        if(execv("/bin/bash",args_for_exec)==-1){
+            perror("smash error: exec failed");
+            //delete[] command;
+            return;
+
+        }
+
 
     }else if (pid < 0){ //error
         perror("smash error: fork failed");
         return;
     }
     else{//parent
+
         this->pid=pid_of_fork; //the pid of external command=pid of son
         if( background==true){
             //we need to add to job list
-            int id_of_add_job=jobs->getMaxID()+1;
-            jobs->addJob(this,JobsList::running);
+            /*if(jobs==nullptr){
+                id_of_add_job=1;
+
+            }else{
+                id_of_add_job=jobs->getMaxID()+1;
+            }*/
+
+            SmallShell::getInstance().jobs->addJob(this,JobsList::running);
+
+
 
         }
         else {//background==false
+
             SmallShell::getInstance().curr_external_fg_command=this;//this cmmand now runs in the foregroung
             if(waitpid(pid_of_fork,NULL,WUNTRACED)<0){
                 perror("smash error: waitpid failed");
@@ -618,3 +669,28 @@ void ExternalCommand::execute() {
 }
 
 //SPECIAL COMMANDS
+
+
+
+
+CatCommand::CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){
+
+}
+void CatCommand::execute(){
+    if(num_args==1){
+        std::cout << "smash error: cat: not enough arguments"<<endl;
+        return;
+    }
+    int buff_from_reading;
+    for (int i=1; i<num_args;i++){
+        FILE* current_file= fopen(args_of_command[i],"r");
+        int fd_of_current_file=fileno(current_file);
+
+        //check sucess?
+        while (read(fd_of_current_file,&buff_from_reading,1)){//read untill finish
+            write(STDOUT_FILENO,&buff_from_reading,1);
+        }
+        close(fd_of_current_file);
+    }
+
+}
