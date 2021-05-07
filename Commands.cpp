@@ -279,22 +279,39 @@ void SmallShell::executeCommand(const char *cmd_line) {
     string first_word=full_coammand.substr(0,index_of_first_space);*/
 
 
-
-
-
-
-
     // TODO: Add your implementation here
     // for example:
     // Command* cmd = CreateCommand(cmd_line);
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 
-    Command* cmd = CreateCommand(cmd_line);
-    if(cmd==nullptr){
-        return;
+    int* loc;
+    specialType type = checkSpecialType(cmd_line, loc);
+    if(type != NOT_SPECIAL){ // special command
+        if(type == OVERRIDE || type == APPEND){ // redirection command
+            //redirection
+            Command* cmd = RedirectionCommand(cmd_line, type);
+            if(cmd == nullptr){
+                return;
+            }
+            cmd->execute();
+        }
+        else{ // pipe command
+            //PIPE - TODO
+            Command* cmd = PipeCommand(cmd_line, type);
+            if(cmd == nullptr){
+                return;
+            }
+            cmd->execute();
+        }
     }
-    cmd->execute();
+    else{ // regular command
+        Command* cmd = CreateCommand(cmd_line);
+        if(cmd == nullptr){
+            return;
+        }
+        cmd->execute();
+    }
 }
 
 std::vector<JobsList::JobEntry*> SmallShell:: jobsToSendAlarm(){
@@ -749,38 +766,184 @@ void ExternalCommand::execute() {
     }
 }
 
+
 //SPECIAL COMMANDS
 
+specialType checkSpecialType(const char* cmd_line, int* special_loc){
 
-specialType Command::checkSpecialType(int* char_loc){
-
-    // return to pointer the location of the char
-    // loop to check if any char criteria is met (pipeType)
+    // return to pointer the location of the special char
+    // loop to check if any char criteria is met (specialType)
     // change specialType according to enum
 
-    for(int i = 0; i < num_args;++i){
-        *char_loc = i;
-        if(!strcmp(args_of_command[i],">")){
+    for(int i = 0; cmd_line[i]!=0 ;++i){
+        *special_loc = i;
+        if(cmd_line[i] == '>'){
+            if(cmd_line[i+1] == '>>'){
+                *special_loc = i;
+                return APPEND;
+            }
+            *special_loc = i;
             return OVERRIDE;
         }
-        else if(!strcmp(args_of_command[i],">>")){
-            return APPEND;
-        }
-        else if(!strcmp(args_of_command[i],"|")){
+        else if(cmd_line[i] == '|'){
+            if(cmd_line[i+1] == '&'){
+                *special_loc = i;
+                return STDERR;
+            }
+            *special_loc = i;
             return STDOUT;
         }
-        else if(!strcmp(args_of_command[i],"|&")){
-            return STDERR;
+    }
+    *special_loc = -1;
+    return NOT_SPECIAL;
+}
+
+// splitting special commands into commands - one if redirection, two if pipe
+bool splitToCommands(specialType type, const char* cmd_line, char** cmd_line_1, char** cmd_line_2){
+    // check spaces before or after?
+    int* loc;
+    specialType type = checkSpecialType(cmd_line, loc);
+    *cmd_line_1 = strndup(cmd_line,loc);
+    if(*cmd_line_1 == nullptr){
+        return false;
+    }
+    int spec_char_size = 1;
+    if(type == APPEND || type == STDERR){
+        spec_char_size++;
+    }
+    *cmd_line_2 = strdup(cmd_line + loc + spec_char_size + 1);
+    if(*cmd_line_1 == nullptr){
+        free(cmd_line_1)
+        return false;
+    }
+    return true;
+}
+
+RedirectionCommand::RedirectionCommand(const char* cmd_line, specialType type) : Command(cmd_line), type(type), org_fd(1), redirected_fd(-1),
+cmd_line_1(nullptr), filename(nullptr) {
+    splitToCommands(type, cmd_line, &cmd_line_1, &filename);
+}
+
+void RedirectionCommand::execute(){
+
+    // redirect the output
+
+    // dup the original STDOUT
+    org_fd = dup(STDOUT_FILENO);
+    if(org_fd == -1){
+        perror("smash error: dup failed")
+    }
+    // open a new fd for the filename
+    if(type == OVERRIDE){
+        redirected_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600) // is that the correct permission??
+    }
+    else{ // type == APPEND
+        redirected_fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0600) // is that the correct permission??
+    }
+    if(redirected_fd == -1){
+        perror(“smash error: open failed”);
+        //redirected_fd = open("/dev/null", O_WRONLY); is this needed????
+    }
+    // dup2 the fd of the filename into the STDOUT
+    dup2_res = dup2(redirected_fd, STDOUT_FILENO)
+    if(dup2_res == -1){
+        perror("smash error: dup2 failed")
+    }
+
+    // create and execute the real command
+    Command* cmd = CreateCommand(cmd_line_1);
+    if(cmd == nullptr){
+        return;
+    }
+    cmd->execute();
+}
+
+RedirectionCommand::~RedirectionCommand(){
+    // free command args?????
+    if(redirected_fd != 1){
+        close(redirected_fd);
+        dup2(org_fd, STDOUT_FILENO);
+    }
+}
+
+PipeCommand::PipeCommand(const char* cmd_line, specialType type) : Command(cmd_line), type(type), cmd_line_1(nullptr), cmd_line_2(nullptr) {
+    splitToCommands(type, cmd_line, &cmd_line_1, &cmd_line_2);
+}
+
+PipeCommand::execute(){
+
+    // open pipe
+    pipe_res = pipe(pipe);
+    if(pipe_res == -1){
+        perror("smash error: pipe failed");
+        return;
+    }
+
+    //create child proccesses for the redirection of input/ouput
+    pid_t pid_child_1, pid_child_2;
+    (pid_child_1 == fork() && pid_child_2 == fork());
+    if(pid_child_1 == 0){ // young boy's 1 code - the 1st command
+        // close pipe[write]
+        close(pipe[1]); // check for failure?
+        // Redirect pipe[read] into STDOUT
+        int output = ((type == STDOUT) ? STDOUT_FILENO : STDERR_FILENO);
+        dup2_res = dup2(pipe[0], output);
+        if(dup2_res == -1){
+            perror("smash error: dup2 failed");
+            return
+        }
+        // Execute command
+        Command* cmd = CreateCommand(cmd_line_1);
+        if(cmd == nullptr){
+            return;
+        }
+        cmd->execute();
+        // Close pipe[read]
+        close(pipe[0]); // check for failure??
+        exit(0); // right way to close child_1 proccess?
+    }
+    else if(pid_child_2 == 0){ // young boy's 2 code - the 2nd command
+        // Close pipe[read]
+        close(pipe[0]); // check for failure?
+        // Redirect pipe[write] into STDIN
+        dup2_res = dup2(pipe[0], STDIN_FILENO);
+        if(dup2_res == -1){
+            perror("smash error: dup2 failed");
+            return
+        }
+        // Execute command
+        Command* cmd = CreateCommand(cmd_line_2);
+        if(cmd == nullptr){
+            return;
+        }
+        cmd->execute();
+        // Close pipe[write]
+        close(pipe[1]); // check for failure??
+        exit(0); // right way to close child_2 proccess?
+    }
+    else if(pid_child_1 < 0 || pid_child_2 < 0){ // failure
+        perror("smash error: fork failure");
+    }
+    else(){ // father
+        // Wait for child processes to end
+        if(waitdpid(pid_child_1,NULL,WUNTRACED) < 0 || waitpid(pid_child_2,NULL,WUNTRACED) < 0){
+            perror("smash error: waitpid failed");
+            return
         }
     }
-    *char_loc = -1;
-    return NOT_SPECIAL;
+    // setpgrp??
+}
 
+PipeCommand::~PipeCommand(){
+    // Close pipe[read] and pipe[write]
+    close(pipe[0]); // check for failure?
+    close(pipe[1]); // check for failure?
 }
 
 CatCommand::CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
 }
+
 void CatCommand::execute(){
     if(num_args==1){
         std::cout << "smash error: cat: not enough arguments"<<endl;

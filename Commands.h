@@ -41,7 +41,6 @@ public:
     //virtual void prepare();
     //virtual void cleanup();
     // TODO: Add your extra methods if needed
-    specialType checkSpecialType(int* char_loc);
 };
 
 class BuiltInCommand : public Command {
@@ -61,17 +60,26 @@ public:
 
 class PipeCommand : public Command {
     // TODO: Add your data members
+    specialType type;
+    int pipe[2];
+    char* cmd_line_1;
+    char* cmd_line_2;
 public:
-    PipeCommand(const char* cmd_line);
-    virtual ~PipeCommand() {}
+    PipeCommand(const char* cmd_line, specialType type);
+    ~PipeCommand() override;
     void execute() override;
 };
 
 class RedirectionCommand : public Command {
     // TODO: Add your data members
+    specialType type;
+    int org_fd;
+    int redirected_fd;
+    char* cmd_line_1;
+    char* filename;
 public:
-    explicit RedirectionCommand(const char* cmd_line);
-    virtual ~RedirectionCommand() {}
+    RedirectionCommand(const char* cmd_line, specialType type);
+    ~RedirectionCommand() override;
     void execute() override;
     //void prepare() override;
     //void cleanup() override;
