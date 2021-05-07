@@ -61,7 +61,7 @@ public:
 class PipeCommand : public Command {
     // TODO: Add your data members
     specialType type;
-    int pipe[2];
+    int pipe_inst[2];
     char* cmd_line_1;
     char* cmd_line_2;
 public:
@@ -278,4 +278,5 @@ public:
 
 };
 
+specialType checkSpecialType(const char *cmd_line,int* special_loc);
 #endif //SMASH_COMMAND_H_

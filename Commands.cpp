@@ -290,19 +290,26 @@ void SmallShell::executeCommand(const char *cmd_line) {
     if(type != NOT_SPECIAL){ // special command
         if(type == OVERRIDE || type == APPEND){ // redirection command
             //redirection
-            Command* cmd = RedirectionCommand(cmd_line, type);
+            Command* cmd = new RedirectionCommand(cmd_line, type);
             if(cmd == nullptr){
+
+                delete cmd;
                 return;
             }
             cmd->execute();
+            delete cmd;
+
         }
         else{ // pipe command
             //PIPE - TODO
-            Command* cmd = PipeCommand(cmd_line, type);
+            Command* cmd =new PipeCommand(cmd_line, type);
             if(cmd == nullptr){
+
+                delete cmd;
                 return;
             }
             cmd->execute();
+            delete cmd;
         }
     }
     else{ // regular command
@@ -802,8 +809,8 @@ specialType checkSpecialType(const char* cmd_line, int* special_loc){
 bool splitToCommands(specialType type, const char* cmd_line, char** cmd_line_1, char** cmd_line_2){
     // check spaces before or after?
     int* loc;
-    specialType type = checkSpecialType(cmd_line, loc);
-    *cmd_line_1 = strndup(cmd_line,loc);
+    specialType type1 = checkSpecialType(cmd_line, loc);
+    *cmd_line_1 = strndup(cmd_line,*loc);
     if(*cmd_line_1 == nullptr){
         return false;
     }
@@ -811,16 +818,16 @@ bool splitToCommands(specialType type, const char* cmd_line, char** cmd_line_1, 
     if(type == APPEND || type == STDERR){
         spec_char_size++;
     }
-    *cmd_line_2 = strdup(cmd_line + loc + spec_char_size + 1);
+    *cmd_line_2 = strdup(cmd_line + *loc + spec_char_size + 1);
     if(*cmd_line_1 == nullptr){
-        free(cmd_line_1)
+        free(cmd_line_1);
         return false;
     }
     return true;
 }
 
 RedirectionCommand::RedirectionCommand(const char* cmd_line, specialType type) : Command(cmd_line), type(type), org_fd(1), redirected_fd(-1),
-cmd_line_1(nullptr), filename(nullptr) {
+                                                                                 cmd_line_1(nullptr), filename(nullptr) {
     splitToCommands(type, cmd_line, &cmd_line_1, &filename);
 }
 
@@ -831,27 +838,27 @@ void RedirectionCommand::execute(){
     // dup the original STDOUT
     org_fd = dup(STDOUT_FILENO);
     if(org_fd == -1){
-        perror("smash error: dup failed")
+        perror("smash error: dup failed");
     }
     // open a new fd for the filename
     if(type == OVERRIDE){
-        redirected_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600) // is that the correct permission??
+        redirected_fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0600); // is that the correct permission??
     }
     else{ // type == APPEND
-        redirected_fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0600) // is that the correct permission??
+        redirected_fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0600); // is that the correct permission??
     }
     if(redirected_fd == -1){
-        perror("smash error: open failed”);
+        perror("smash error: open failed");
         //redirected_fd = open("/dev/null", O_WRONLY); is this needed????
     }
     // dup2 the fd of the filename into the STDOUT
-    dup2_res = dup2(redirected_fd, STDOUT_FILENO)
+    int dup2_res = dup2(redirected_fd, STDOUT_FILENO);
     if(dup2_res == -1){
-        perror("smash error: dup2 failed")
+        perror("smash error: dup2 failed");
     }
 
     // create and execute the real command
-    Command* cmd = CreateCommand(cmd_line_1);
+    Command* cmd = SmallShell::getInstance().CreateCommand(cmd_line_1);
     if(cmd == nullptr){
         return;
     }
@@ -870,10 +877,10 @@ PipeCommand::PipeCommand(const char* cmd_line, specialType type) : Command(cmd_l
     splitToCommands(type, cmd_line, &cmd_line_1, &cmd_line_2);
 }
 
-PipeCommand::execute(){
+void PipeCommand::execute(){
 
     // open pipe
-    pipe_res = pipe(pipe);
+    int pipe_res = pipe(pipe_inst);
     if(pipe_res == -1){
         perror("smash error: pipe failed");
         return;
@@ -884,51 +891,51 @@ PipeCommand::execute(){
     (pid_child_1 == fork() && pid_child_2 == fork());
     if(pid_child_1 == 0){ // young boy's 1 code - the 1st command
         // close pipe[write]
-        close(pipe[1]); // check for failure?
+        close(pipe_inst[1]); // check for failure?
         // Redirect pipe[read] into STDOUT
         int output = ((type == STDOUT) ? STDOUT_FILENO : STDERR_FILENO);
-        dup2_res = dup2(pipe[0], output);
+        int dup2_res = dup2(pipe_inst[0], output);
         if(dup2_res == -1){
             perror("smash error: dup2 failed");
-            return
+            return;
         }
         // Execute command
-        Command* cmd = CreateCommand(cmd_line_1);
+        Command* cmd =SmallShell::getInstance().CreateCommand(cmd_line_1);
         if(cmd == nullptr){
             return;
         }
         cmd->execute();
         // Close pipe[read]
-        close(pipe[0]); // check for failure??
+        close(pipe_inst[0]); // check for failure??
         exit(0); // right way to close child_1 proccess?
     }
     else if(pid_child_2 == 0){ // young boy's 2 code - the 2nd command
         // Close pipe[read]
-        close(pipe[0]); // check for failure?
+        close(pipe_inst[0]); // check for failure?
         // Redirect pipe[write] into STDIN
-        dup2_res = dup2(pipe[0], STDIN_FILENO);
+        int dup2_res = dup2(pipe_inst[0], STDIN_FILENO);
         if(dup2_res == -1){
             perror("smash error: dup2 failed");
-            return
+            return;
         }
         // Execute command
-        Command* cmd = CreateCommand(cmd_line_2);
+        Command* cmd = SmallShell::getInstance().CreateCommand(cmd_line_2);
         if(cmd == nullptr){
             return;
         }
         cmd->execute();
         // Close pipe[write]
-        close(pipe[1]); // check for failure??
+        close(pipe_inst[1]); // check for failure??
         exit(0); // right way to close child_2 proccess?
     }
     else if(pid_child_1 < 0 || pid_child_2 < 0){ // failure
         perror("smash error: fork failure");
     }
-    else(){ // father
+    else{ // father
         // Wait for child processes to end
-        if(waitdpid(pid_child_1,NULL,WUNTRACED) < 0 || waitpid(pid_child_2,NULL,WUNTRACED) < 0){ // check if this is correct
+        if(waitpid(pid_child_1,NULL,WUNTRACED) < 0 || waitpid(pid_child_2,NULL,WUNTRACED) < 0){ // check if this is correct
             perror("smash error: waitpid failed");
-            return
+            return;
         }
     }
     // setpgrp??
@@ -936,8 +943,8 @@ PipeCommand::execute(){
 
 PipeCommand::~PipeCommand(){
     // Close pipe[read] and pipe[write]
-    close(pipe[0]); // check for failure?
-    close(pipe[1]); // check for failure?
+    close(pipe_inst[0]); // check for failure?
+    close(pipe_inst[1]); // check for failure?
 }
 
 CatCommand::CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){
