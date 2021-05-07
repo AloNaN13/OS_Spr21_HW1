@@ -87,7 +87,8 @@ void _removeBackgroundSign(char* cmd_line) {
 
 // TODO: Add your implementation for classes in Commands.h
 
-SmallShell::SmallShell():jobs(new JobsList()),current_promt("smash"),curr_external_fg_command(nullptr) {
+SmallShell::SmallShell():jobs(new JobsList()),current_promt("smash"),
+                         curr_external_fg_command(nullptr),time_outs(new TimeOutList()){
 // TODO: add your implementation
 }
 
@@ -121,8 +122,10 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 
 
 
+    SmallShell::getInstance().jobs->removeFinishedJobs();
+
     //took from idan, need to change later, just want to see if the functions work
-    string cmd_s = string(cmd_line);
+    /*string cmd_s = string(cmd_line);
     _ltrim(cmd_s);
     if (cmd_s.find("chprompt") == 0) {
         return new ChangePromptCommand(cmd_line);
@@ -143,45 +146,128 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
         return new BackgroundCommand(cmd_line, this->jobs);
     } else if (cmd_s.find("quit") == 0) {
         return new QuitCommand(cmd_line,this->jobs );
-    } else {
+    } else if (cmd_s.find("timeout") == 0) {
+        //do timeout
+     }else {
+        return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
+    }*/
+
+
+
+    string cmd_s = _trim(string(cmd_line));
+    string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
+
+    if (firstWord.compare("chprompt") == 0) {
+        return new ChangePromptCommand(cmd_line);
+    } else if (firstWord.compare("showpid") == 0) {
+        return new ShowPidCommand(cmd_line);
+    } else if (firstWord.compare("pwd") == 0) {
+        return new GetCurrDirCommand(cmd_line);
+    }else if (firstWord.compare("cd") == 0) {
+        return new ChangeDirCommand(cmd_line, &(this->last_direction_command));
+    }else if (firstWord.compare("jobs") == 0) {
+        return new JobsCommand(cmd_line,  this->jobs);
+    }else if (firstWord.compare("kill") == 0) {
+        return new KillCommand(cmd_line, this->jobs);
+    } else if (firstWord.compare("fg") == 0) {
+        return new ForegroundCommand(cmd_line, this->jobs);
+    } else if (firstWord.compare("bg") == 0) {
+        return new BackgroundCommand(cmd_line, this->jobs);
+    } else if (firstWord.compare("quit") == 0) {
+        return new QuitCommand(cmd_line,this->jobs );
+    } /*else if (firstWord.compare("timeout") == 0) {
+         return timeOutCommand(cmd_line);
+     }*/else {
         return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
     }
-
-
-
-    /* string cmd_s = _trim(string(cmd_line));
-     string firstWord = cmd_s.substr(0, cmd_s.find_first_of(" \n"));
-
-     if (firstWord.compare("chprompt") == 0) {
-         return new ChangePromptCommand(cmd_line);
-     } else if (firstWord.compare("showpid") == 0) {
-         return new ShowPidCommand(cmd_line);
-     } else if (firstWord.compare("pwd") == 0) {
-          return new GetCurrDirCommand(cmd_line);
-     }else if (firstWord.compare("cd") == 0) {
-         return new ChangeDirCommand(cmd_line, &(this->last_direction_command));
-     }else if (firstWord.compare("jobs") == 0) {
-         return new JobsCommand(cmd_line,  this->jobs);
-     }else if (firstWord.compare("kill") == 0) {
-         return new KillCommand(cmd_line, this->jobs);
-     } else if (firstWord.compare("fg") == 0) {
-         return new ForegroundCommand(cmd_line, this->jobs);
-     } else if (firstWord.compare("bg") == 0) {
-         return new BackgroundCommand(cmd_line, this->jobs);
-     } else if (firstWord.compare("quit") == 0) {
-         return new QuitCommand(cmd_line,this->jobs );
-     } else {
-         return new ExternalCommand(cmd_line, SmallShell::getInstance().jobs);//need to deal with this
-     }*/
 
 
     //need to add special commands
     return nullptr;
 }
 
+//time-outs
 
 
+/*Command* SmallShell::timeOutCommand(const char *cmd_line){
+    //background=_isBackgroundComamnd(cmd_line);
+    char* args_with_timeout[COMMAND_MAX_ARGS];
+    char* cmd_line_without_background_sign=strdup(cmd_line);
 
+    int num_args_of_allcommand= _parseCommandLine(cmd_line,args_with_timeout);
+     int duration_of_timeout=atoi(args_with_timeout[1]);
+     if(duration_of_timeout==0||num_args_of_allcommand==2){
+         perror("smash error: timeout: invalid arguments");
+         return nullptr;
+     }
+     string command_without_timeout="";
+     for (int i = 2; i < num_args_of_allcommand; i++)
+     {
+         command_without_timeout=command_without_timeout+string(args_with_timeout[i]);
+     }
+     char* cmd_without_timeout=&command_without_timeout[0];
+     Command *new_command=CreateCommand(cmd_without_timeout);
+     if(new_command==nullptr){
+         return nullptr;
+     }
+     SmallShell::getInstance().time_outs->addTimeOut(time(NULL),new_command->getPid(),duration_of_timeout);
+     alarm(duration_of_timeout);
+     return new_command;
+
+
+}
+void TimeOutList::addTimeOut(time_t insertion_time,pid_t pid, int duration_left){
+        TimeOutList::TimeOutEntry* new_time_out=
+                new TimeOutList::TimeOutEntry(insertion_time,pid,duration_left);
+
+}
+void   TimeOutList::removeFinishedTimeOuts(){
+    pid_t result_of_wait;
+    std::vector<TimeOutEntry*> timeOuts_to_erase;
+    for(auto iter= timeOuts_list.begin();iter!=timeOuts_list.end();++iter){
+        result_of_wait=waitpid((*iter)->pid_of_the_time_entry ,NULL,WNOHANG);
+        //CHECK IF RESULT WAS BAD
+        if (result_of_wait>0){
+            timeOuts_to_erase.push_back(*iter);
+        }
+
+
+    }
+    //now its time to delete
+
+    for(auto iter= timeOuts_to_erase.begin();iter!=timeOuts_to_erase.end();++iter){
+        removeJobById((*iter)->job_id);
+    }
+    //find max+id
+    int max_id=0;
+    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+        if(max_id<(*iter)->job_id){
+            max_id=(*iter)->job_id;
+        }
+    }
+    this->max_id=max_id;
+}*/
+
+
+TimeOutList::TimeOutEntry* TimeOutList:: closestTimeOut(){
+    if(timeOuts_vec.size()==0){
+        return nullptr;
+    }
+    time_t current_time=time(NULL);
+    auto iter= timeOuts_vec.begin();
+    double runs_for=difftime((*iter)->insertion_time,current_time);
+    double min_left_duration=(*iter)->duration_left-runs_for;
+    TimeOutEntry* closest_time_tenry=(*iter);
+
+    for(;iter!=timeOuts_vec.end();++iter){
+        runs_for=difftime((*iter)->insertion_time,current_time);
+        if( min_left_duration>(*iter)->duration_left-runs_for){
+            min_left_duration=(*iter)->duration_left-runs_for;
+            closest_time_tenry=(*iter);
+        }
+    }
+    return closest_time_tenry;
+}
 
 
 
@@ -211,18 +297,11 @@ void SmallShell::executeCommand(const char *cmd_line) {
     cmd->execute();
 }
 
-
-int get_index_of_first_space_in_command(const char *cmd_line){
-    int i=0;
-    char current_char='1';
-    while(current_char!=' ' && current_char!=0){
-        current_char=cmd_line[i];
-        i++;
+std::vector<JobsList::JobEntry*> SmallShell:: jobsToSendAlarm(){
 
 
-    }
-    return i;
 }
+
 
 
 
@@ -328,7 +407,6 @@ void ChangeDirCommand::execute(){
 
 GetCurrDirCommand:: GetCurrDirCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
-
 }
 
 void GetCurrDirCommand::execute(){
@@ -430,8 +508,11 @@ void JobsList::removeFinishedJobs(){
         result_of_wait=waitpid((*iter)->get_pid(),NULL,WNOHANG);
         //CHECK IF RESULT WAS BAD
 
-        //NEED TO CHEK IT BEFORE WE PUSH IT?
-        jobs_to_erase.push_back(*iter);
+        if (result_of_wait>0){
+            jobs_to_erase.push_back(*iter);
+        }
+
+
     }
     //now its time to delete
 
@@ -448,19 +529,19 @@ void JobsList::removeFinishedJobs(){
     this->max_id=max_id;
 }
 
-void JobsList::addJob(Command* cmd, bool isStopped ){
+void JobsList::addJob(Command* cmd, JobStatus status ){
     int id_of_added_job=this->getMaxID()+1;
-    JobStatus status_of_job;
+    /*JobStatus status_of_job;
     if (isStopped) {
         status_of_job = stopped;
     } else {
         status_of_job = running;
-    }
+    }*/
 
 
 
     JobsList::JobEntry* job_to_add =
-            new JobsList::JobEntry(id_of_added_job,time(NULL),status_of_job,(cmd));
+            new JobsList::JobEntry(id_of_added_job,time(NULL),status,cmd);
     jobs_list.push_back(job_to_add);
     SmallShell::getInstance().jobs->max_id=id_of_added_job;
 
@@ -476,7 +557,7 @@ void JobsCommand::execute(){
 
         std::cout<<"["<<(*iter)->get_job_id()<<"] "<<string((*iter)->command_of_job->getCommandLine())<<" : "<<
                  (*iter)->get_pid()<<" "<<difftime(time(NULL),(*iter)->arrived_time)<<" secs";
-        if((*iter)->get_status()==0){ //stoped
+        if((*iter)->get_status()==JobsList::stopped){ //stoped
             std::cout<<" (stopped)";
         }
         std::cout<<endl;

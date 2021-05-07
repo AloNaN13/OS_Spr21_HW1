@@ -46,6 +46,18 @@ void ctrlCHandler(int sig_num) {
 void alarmHandler(int sig_num) {
     // TODO: Add your implementation
     std::cout << "smash: got an alarm"<<endl;
+    SmallShell* smash_inst =&(SmallShell::getInstance());
+
+    //run on the list
+
+
+
+    TimeOutList::TimeOutEntry* closest_time_out=SmallShell::getInstance().time_outs->closestTimeOut();
+    if(closest_time_out!=nullptr){
+        int for_alarm=closest_time_out->duration_left-(difftime(closest_time_out->insertion_time,time(NULL)));
+        alarm(for_alarm);
+    }
+
 
 
 }

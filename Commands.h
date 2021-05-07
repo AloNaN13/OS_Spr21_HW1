@@ -17,6 +17,7 @@ enum specialType {NOT_SPECIAL, OVERRIDE, APPEND, STDOUT, STDERR};
 using std::string;
 
 class JobsList;
+class TimeOutList;
 class Command {
 
 
@@ -53,7 +54,7 @@ public:
 class ExternalCommand : public Command {
     JobsList* jobs;
 public:
-    ExternalCommand(const char *cmd_line, JobsList *jobsList):Command(cmd_line), jobs(jobs){}
+    ExternalCommand(const char *cmd_line, JobsList *jobs_list):Command(cmd_line), jobs(jobs_list){}
     virtual ~ExternalCommand() {}
     void execute() override;
 };
@@ -122,7 +123,6 @@ public:
 
 
 class JobsList {
-    int max_id;
 public:
     enum JobStatus {stopped,running};
     class JobEntry {
@@ -150,7 +150,7 @@ public:
 public:
     JobsList();
     ~JobsList();
-    void addJob(Command* cmd, bool isStopped = false);
+    void addJob(Command* cmd, JobStatus status);
     void printJobsList();
     void killJobs();
     void removeFinishedJobs();
@@ -159,6 +159,7 @@ public:
     JobEntry * getLastJob(int* lastJobId);
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
+    int max_id;
     std::vector<JobEntry*> jobs_list;
     //void deleteSpecificJobByID(int id_to_delete);
     void printSpecificJobByID(int id_to_print);
@@ -216,9 +217,13 @@ private:
     // TODO: Add your data members
 public:
     JobsList* jobs;
-    char* last_direction_command;
     string current_promt; //for the cd command
     Command* curr_external_fg_command;
+    TimeOutList* time_outs;
+    char* last_direction_command;
+
+
+
 
     SmallShell();
 public:
@@ -238,9 +243,14 @@ public:
         this->current_promt=new_prompt;
     }
     string getCurrentPrompt(){return this->current_promt;}
+    Command* timeOutCommand(const char* cmd_line);
+    std::vector<JobsList::JobEntry*> jobsToSendAlarm();
+
+
 };
 
 class TimeOutList{
+public:
     class TimeOutEntry{
     public:
         time_t insertion_time;
@@ -252,10 +262,11 @@ class TimeOutList{
         ~TimeOutEntry(){}
 
     };
-
-
-
-    std::vector<TimeOutEntry*> TimeOuts_list;
+public:
+    std::vector<TimeOutEntry*> timeOuts_vec;
+    void addTimeOut(time_t insertion_time,pid_t pid, int duration_left);
+    void removeFinishedTimeOuts();
+    TimeOutEntry* closestTimeOut();
 
 };
 
