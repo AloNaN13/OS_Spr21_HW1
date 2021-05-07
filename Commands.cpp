@@ -285,8 +285,8 @@ void SmallShell::executeCommand(const char *cmd_line) {
     // cmd->execute();
     // Please note that you must fork smash process for some commands (e.g., external commands....)
 
-    int* loc;
-    specialType type = checkSpecialType(cmd_line, loc);
+    int loc;
+    specialType type = checkSpecialType(cmd_line, &loc);
     if(type != NOT_SPECIAL){ // special command
         if(type == OVERRIDE || type == APPEND){ // redirection command
             //redirection
@@ -808,9 +808,9 @@ specialType checkSpecialType(const char* cmd_line, int* special_loc){
 // splitting special commands into commands - one if redirection, two if pipe
 bool splitToCommands(specialType type, const char* cmd_line, char** cmd_line_1, char** cmd_line_2){
     // check spaces before or after?
-    int* loc;
-    specialType type1 = checkSpecialType(cmd_line, loc);
-    *cmd_line_1 = strndup(cmd_line,*loc);
+    int loc;
+    specialType type1 = checkSpecialType(cmd_line, &loc);
+    *cmd_line_1 = strndup(cmd_line,loc);
     if(*cmd_line_1 == nullptr){
         return false;
     }
@@ -818,7 +818,7 @@ bool splitToCommands(specialType type, const char* cmd_line, char** cmd_line_1, 
     if(type == APPEND || type == STDERR){
         spec_char_size++;
     }
-    *cmd_line_2 = strdup(cmd_line + *loc + spec_char_size + 1);
+    *cmd_line_2 = strdup(cmd_line + loc + spec_char_size + 1);
     if(*cmd_line_1 == nullptr){
         free(cmd_line_1);
         return false;
