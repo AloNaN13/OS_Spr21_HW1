@@ -841,7 +841,7 @@ void RedirectionCommand::execute(){
         redirected_fd = open(filename, O_WRONLY | O_CREAT | O_APPEND, 0600) // is that the correct permission??
     }
     if(redirected_fd == -1){
-        perror(“smash error: open failed”);
+        perror("smash error: open failed”);
         //redirected_fd = open("/dev/null", O_WRONLY); is this needed????
     }
     // dup2 the fd of the filename into the STDOUT
@@ -926,7 +926,7 @@ PipeCommand::execute(){
     }
     else(){ // father
         // Wait for child processes to end
-        if(waitdpid(pid_child_1,NULL,WUNTRACED) < 0 || waitpid(pid_child_2,NULL,WUNTRACED) < 0){
+        if(waitdpid(pid_child_1,NULL,WUNTRACED) < 0 || waitpid(pid_child_2,NULL,WUNTRACED) < 0){ // check if this is correct
             perror("smash error: waitpid failed");
             return
         }
