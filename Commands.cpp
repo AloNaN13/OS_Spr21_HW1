@@ -287,6 +287,7 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
     int* loc;
     specialType type = checkSpecialType(cmd_line, loc);
+
     if(type != NOT_SPECIAL){ // special command
         if(type == OVERRIDE || type == APPEND){ // redirection command
             //redirection
@@ -358,6 +359,7 @@ BuiltInCommand::BuiltInCommand(const char *cmd_line) :Command(cmd_line){
 
 
     //need to add for the other commands
+
 }
 
 
@@ -785,7 +787,7 @@ specialType checkSpecialType(const char* cmd_line, int* special_loc){
     for(int i = 0; cmd_line[i]!=0 ;++i){
         *special_loc = i;
         if(cmd_line[i] == '>'){
-            if(cmd_line[i+1] == '>>'){
+            if(cmd_line[i+1] == '>'){
                 *special_loc = i;
                 return APPEND;
             }
@@ -802,6 +804,7 @@ specialType checkSpecialType(const char* cmd_line, int* special_loc){
         }
     }
     *special_loc = -1;
+    std::cout<<*special_loc<<std::endl;
     return NOT_SPECIAL;
 }
 
@@ -953,7 +956,7 @@ CatCommand::CatCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
 void CatCommand::execute(){
     if(num_args==1){
-        std::cout << "smash error: cat: not enough arguments"<<endl;
+        std::cout << "smash error: cat: not enough arguments"<<std::endl;
         return;
     }
     int buff_from_reading;
