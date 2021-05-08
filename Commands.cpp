@@ -446,7 +446,7 @@ ShowPidCommand:: ShowPidCommand(const char* cmd_line):BuiltInCommand(cmd_line){
 
 void ShowPidCommand::execute(){
     //pid_t pid = getpid();
-    std::cout<< " smash pid is "<<this->pid<<endl;
+    std::cout<< "smash pid is "<<this->pid<<endl;
 }
 
 
@@ -887,50 +887,62 @@ void PipeCommand::execute(){
 
     //create child proccesses for the redirection of input/ouput
     pid_t pid_child_1, pid_child_2;
-    (pid_child_1 == fork() && pid_child_2 == fork());
+    ((pid_child_1 = fork()) && (pid_child_2 = fork()));
+//    std::cout << "child 1 is: " << pid_child_1 << std::endl;
+//    std::cout << "child 2 is: " << pid_child_2 << std::endl;
     if(pid_child_1 == 0){ // young boy's 1 code - the 1st command
+//        std::cout << "in child 1" << std::endl;
         // close pipe[write]
-        close(pipe_inst[1]); // check for failure?
+        close(pipe_inst[0]); // check for failure?
         // Redirect pipe[read] into STDOUT
         int output = ((type == STDOUT) ? STDOUT_FILENO : STDERR_FILENO);
-        int dup2_res = dup2(pipe_inst[0], output);
+//        std::cout << output << std::endl;
+//        std::cout << "right before dup" << std::endl;
+        int dup2_res = dup2(pipe_inst[1], output);
+//        std::cout << "right after dup" << std::endl;
         if(dup2_res == -1){
             perror("smash error: dup2 failed");
             return;
         }
         // Execute command
-        Command* cmd =SmallShell::getInstance().CreateCommand(cmd_line_1);
+        Command* cmd = SmallShell::getInstance().CreateCommand(cmd_line_1);
         if(cmd == nullptr){
             return;
         }
         cmd->execute();
         // Close pipe[read]
-        close(pipe_inst[0]); // check for failure??
+        close(pipe_inst[1]); // check for failure??
         exit(0); // right way to close child_1 proccess?
     }
     else if(pid_child_2 == 0){ // young boy's 2 code - the 2nd command
+//        std::cout << "in child 2" << std::endl;
         // Close pipe[read]
-        close(pipe_inst[0]); // check for failure?
+        close(pipe_inst[1]); // check for failure?
         // Redirect pipe[write] into STDIN
+        //std::cout << "right before dup2" << std::endl;
         int dup2_res = dup2(pipe_inst[0], STDIN_FILENO);
+        //std::cout << "right after dup2" << std::endl;
         if(dup2_res == -1){
             perror("smash error: dup2 failed");
             return;
         }
         // Execute command
         Command* cmd = SmallShell::getInstance().CreateCommand(cmd_line_2);
+        //std::cout << "right after create command" << std::endl;
         if(cmd == nullptr){
             return;
         }
         cmd->execute();
+        //std::cout << "right after execute" << std::endl;
         // Close pipe[write]
-        close(pipe_inst[1]); // check for failure??
+        close(pipe_inst[0]); // check for failure??
         exit(0); // right way to close child_2 proccess?
     }
     else if(pid_child_1 < 0 || pid_child_2 < 0){ // failure
         perror("smash error: fork failure");
     }
     else{ // father
+//        std::cout << "in father" << std::endl;
         // Wait for child processes to end
         if(waitpid(pid_child_1,NULL,WUNTRACED) < 0 || waitpid(pid_child_2,NULL,WUNTRACED) < 0){ // check if this is correct
             perror("smash error: waitpid failed");
