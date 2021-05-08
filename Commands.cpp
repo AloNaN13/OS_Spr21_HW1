@@ -289,7 +289,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
     specialType type = checkSpecialType(cmd_line, &loc);
     if(type != NOT_SPECIAL){ // special command
         if(type == OVERRIDE || type == APPEND){ // redirection command
-            //redirection
             Command* cmd = new RedirectionCommand(cmd_line, type);
             if(cmd == nullptr){
 
@@ -301,7 +300,6 @@ void SmallShell::executeCommand(const char *cmd_line) {
 
         }
         else{ // pipe command
-            //PIPE - TODO
             Command* cmd =new PipeCommand(cmd_line, type);
             if(cmd == nullptr){
 
@@ -803,7 +801,6 @@ specialType checkSpecialType(const char* cmd_line, int* special_loc){
         }
     }
     *special_loc = -1;
-    std::cout<<*special_loc<<std::endl;
     return NOT_SPECIAL;
 }
 
