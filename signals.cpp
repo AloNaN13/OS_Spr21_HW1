@@ -46,15 +46,24 @@ void ctrlCHandler(int sig_num) {
 void alarmHandler(int sig_num) {
     // TODO: Add your implementation
     std::cout << "smash: got an alarm"<<endl;
-    SmallShell* smash_inst =&(SmallShell::getInstance());
-
+    TimeOutList::TimeOutEntry* timeout_casued_Alarm=SmallShell::getInstance().time_outs->findTimeoutCausedAlarm();
+    if(timeout_casued_Alarm==nullptr){
+        std::cout << "strang: there is no hob with such alarm"<<endl;
+        return;
+    }
+    std::cout << "smash: timeout "<<timeout_casued_Alarm->duration<<" "<< timeout_casued_Alarm->clean_commandline<<"timed out!"<<endl;
     //run on the list
-
-
+    if(timeout_casued_Alarm->pid_of_the_time_entry!=getpid()){
+        if(kill(timeout_casued_Alarm->pid_of_the_time_entry,SIGKILL)<0){
+            perror("smash error: kill failed");
+            return;
+        }
+    }
+    SmallShell::getInstance().time_outs->removeTimeOut(timeout_casued_Alarm->pid_of_the_time_entry);
 
     TimeOutList::TimeOutEntry* closest_time_out=SmallShell::getInstance().time_outs->closestTimeOut();
     if(closest_time_out!=nullptr){
-        int for_alarm=closest_time_out->duration_left-(difftime(closest_time_out->insertion_time,time(NULL)));
+        int for_alarm=closest_time_out->duration-(difftime(closest_time_out->insertion_time,time(NULL)));
         alarm(for_alarm);
     }
 
