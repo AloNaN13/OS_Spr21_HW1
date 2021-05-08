@@ -51,9 +51,9 @@ public:
 };
 
 class ExternalCommand : public Command {
-    JobsList* jobs;
+    //JobsList* jobs;
 public:
-    ExternalCommand(const char *cmd_line, JobsList *jobs_list):Command(cmd_line), jobs(jobs_list){}
+    ExternalCommand(const char *cmd_line):Command(cmd_line){}
     virtual ~ExternalCommand() {}
     void execute() override;
 };
@@ -141,10 +141,11 @@ public:
         time_t arrived_time;
         JobStatus job_status;//0 stopeed, 1 running
         Command* command_of_job;
+        string command_line_of_job;
 
 
-        JobEntry(int job_id, time_t arrived_time,JobStatus job_status, Command* command_of_job):
-                job_id(job_id),arrived_time(arrived_time),job_status(job_status),command_of_job(command_of_job){}
+        JobEntry(int job_id, time_t arrived_time,JobStatus job_status, Command* command_of_job, string cmd_line_of_job):
+                job_id(job_id),arrived_time(arrived_time),job_status(job_status),command_of_job(command_of_job),command_line_of_job(cmd_line_of_job){}
         JobStatus get_status(){return job_status;}
         int get_job_id(){return job_id;}
         int get_pid(){return command_of_job->getPid();}
@@ -176,9 +177,9 @@ public:
 
 class JobsCommand : public BuiltInCommand {
     // TODO: Add your data members
-    JobsList* jobs;
+    JobsList* jobs_;
 public:
-    JobsCommand(const char* cmd_line, JobsList* jobs):BuiltInCommand(cmd_line), jobs(jobs){}
+    JobsCommand(const char* cmd_line):BuiltInCommand(cmd_line){}
     virtual ~JobsCommand() {}
     void execute() override;
 };
@@ -263,18 +264,20 @@ public:
     public:
         time_t insertion_time;
         pid_t pid_of_the_time_entry;
-        int duration_left;
+        int duration;
+        char* clean_commandline;
 
-        TimeOutEntry(time_t insertion_time, pid_t pid,int duration_left):
-                insertion_time(insertion_time),pid_of_the_time_entry(pid), duration_left(duration_left) {}
+        TimeOutEntry(time_t insertion_time, pid_t pid,int duration_left,char* clean_commandline):
+                insertion_time(insertion_time),pid_of_the_time_entry(pid), duration(duration_left),clean_commandline(clean_commandline) {}
         ~TimeOutEntry(){}
 
     };
 public:
     std::vector<TimeOutEntry*> timeOuts_vec;
-    void addTimeOut(time_t insertion_time,pid_t pid, int duration_left);
-    void removeFinishedTimeOuts();
+    void addTimeOut(time_t insertion_time,pid_t pid, int duration_left, char* clean_cmd);
+    void removeTimeOut(int pid_of_timeout_to_remove);
     TimeOutEntry* closestTimeOut();
+    TimeOutEntry* findTimeoutCausedAlarm();
 
 };
 
