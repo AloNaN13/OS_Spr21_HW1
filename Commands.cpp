@@ -501,7 +501,6 @@ void JobsList::removeJobByPid( int pid_of_removed_job){
 }
 
 void JobsList::removeJobById(int id_to_delete){
-    std::cout<<"in removejobby id- id to delete is: "<<id_to_delete<<endl;
 
     for (unsigned int i = 0; i < jobs_list_vec.size(); i++)
     {
@@ -523,14 +522,14 @@ void JobsList::removeJobById(int id_to_delete){
             return;
         }
     }*/
-    std::cout<<"after for in removehob by id"<<endl;
+
 }
 
 void JobsList::printSpecificJobByID(int id_to_print){
-    for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
-        if(id_to_print==(*iter)->job_id){
-            std::cout << string((*iter)->command_line_of_job) << " : " << (*iter)->get_pid() << endl;
 
+    for(auto iter=SmallShell::getInstance().jobs->jobs_list_vec.begin();iter!=SmallShell::getInstance().jobs->jobs_list_vec.end();++iter){
+        if(id_to_print==(*iter)->job_id){
+            std::cout << string((*iter)->command_line_of_job) << " : " << (*iter)->pid_of_job_entry << endl;
             break;
         }
     }
@@ -575,14 +574,12 @@ void JobsList::removeFinishedJobs(){
     //now its time to delete
 
 
-    std::cout<<"after push jobs to erase"<<endl;
     for(auto iter= ids_to_delete.begin();iter!=ids_to_delete.end();++iter){
         //removeJobById((*iter)->job_id);
         SmallShell::getInstance().jobs->removeJobById((*iter));
     }
 
 
-    std::cout<<"before max id"<<endl;
     //find max+id
     int max_id=0;
     for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
@@ -699,7 +696,7 @@ void ForegroundCommand::execute(){
             return;
         }
     }
-    jobs->printSpecificJobByID(job_id_to_fg);
+    SmallShell::getInstance().jobs->printSpecificJobByID(job_id_to_fg);
     //now we need to move  the job to fg
 
     SmallShell::getInstance().curr_external_fg_command=job_to_fg->command_of_job;
@@ -726,9 +723,10 @@ void BackgroundCommand::execute(){
             std::cout << "smash error: bg: there is no stopeed jobs to resume" << endl;
             return;
         }
+        job_id_to_bg=job_to_bg->job_id;
     }
     else{
-        int job_id_to_bg=atoi (args_of_command[1]);
+        job_id_to_bg=atoi(args_of_command[1]);
         if(job_id_to_bg==0){//format of the id is bad
             std::cout << "smash error: bg: invalid arguments" << endl;
             return;
@@ -738,13 +736,14 @@ void BackgroundCommand::execute(){
             std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" does not exist"<<endl;
             return;
         }
-        if(job_to_bg->get_status()==JobsList::stopped){
+        if(job_to_bg->get_status()==JobsList::running){
             std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" is already running in the backgroung"<<endl;
+            return;
         }
     }
     jobs->printSpecificJobByID(job_id_to_bg);
     //now to bring it to bg
-    if(kill(job_id_to_bg,SIGCONT)==-1){
+    if(kill(job_to_bg->pid_of_job_entry,SIGCONT)==-1){
         perror("smash error: kill failed");
         return;
     }
