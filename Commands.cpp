@@ -165,7 +165,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 Command* SmallShell::timeOutCommand(const char *cmd_line){
     //background=_isBackgroundComamnd(cmd_line);
     char* args_with_timeout[COMMAND_MAX_ARGS];
-    char* cmd_line_without_background_sign=strdup(cmd_line);
+    // char* cmd_line_without_background_sign=strdup(cmd_line);
 
     int num_args_of_allcommand= _parseCommandLine(cmd_line,args_with_timeout);
     int duration_of_timeout=atoi(args_with_timeout[1]);
@@ -318,10 +318,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
     }
 }
 
-std::vector<JobsList::JobEntry*> SmallShell:: jobsToSendAlarm(){
+/*std::vector<JobsList::JobEntry*> SmallShell:: jobsToSendAlarm(){
 
-
-}
+}*/
 
 
 
@@ -454,7 +453,7 @@ QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(
 void QuitCommand::execute(){
     if(to_kill) {
         //(assert(jobs_list));
-        jobs_list->killJobs();
+        SmallShell::getInstance().jobs->killJobs();
     }
     exit(0); // correct way to exit?
 }
@@ -468,7 +467,7 @@ void JobsList::killJobs() {
     int jobs_num = jobs_list_vec.size();
     std::cout << "smash: sending SIGKILL signal to " << jobs_num << " jobs:" << endl;
     for (auto iter = jobs_list_vec.begin(); iter != jobs_list_vec.end(); ++iter) {
-        pid_t pid = (*iter)->get_pid();
+        pid_t pid = (*iter)->pid_of_job_entry;
         if(kill(pid, SIGKILL) == -1){
             perror("smash error: kill failed"); // ok to do so? needed?
         }
@@ -640,6 +639,7 @@ void KillCommand::execute(){
     }
 
     int signal_to_send =atoi ((args_of_command[1]+1));
+
     //shou i check that signal to send consists only of numbers
 
     int job_id=atoi (args_of_command[2]);
@@ -653,21 +653,23 @@ void KillCommand::execute(){
     }
 
 
-    JobsList::JobEntry* job_to_kill= this->jobs->getJobById(job_id);
+    JobsList::JobEntry* job_to_kill= SmallShell::getInstance().jobs->getJobById(job_id);
     if (job_to_kill==NULL){//there is no such job
-        std::cout<<"smash error: kill: job-id" << job_id << "does not exist"<<endl;
+        std::cout<<"smash error: kill: job-id " << job_id << " does not exist"<<endl;
         return;
     }
-    pid_t pid_of_job_to_kill=job_to_kill->get_pid();
-    if(kill(pid, signal_to_send)!=0){
+    pid_t pid_of_job_to_kill=job_to_kill->pid_of_job_entry;
+
+    if(kill(pid_of_job_to_kill, signal_to_send)!=0){
         perror("smash error: kill failed");
         return;
     }
-    cout<< "signal number"<<signal_to_send<<"was sent to pid"<<pid_of_job_to_kill<<endl;
+    cout<< "signal number "<<signal_to_send<<" was sent to pid "<<pid_of_job_to_kill<<endl;
 
 }
 
 void ForegroundCommand::execute(){
+    std::cout<<"check fg"<<endl;
     int job_id_to_fg=jobs->getMaxID();
     int jobs_max_id=jobs->getMaxID();
     JobsList::JobEntry* job_to_fg=nullptr;
@@ -690,7 +692,7 @@ void ForegroundCommand::execute(){
             return;
         }
 
-        job_to_fg= this->jobs->getJobById(job_id_to_fg);
+        job_to_fg= SmallShell::getInstance().jobs->getJobById(job_id_to_fg);
         if(job_to_fg==nullptr){
             std::cout << "smash error: fg: job-id "<< job_id_to_fg <<" does not exist"<<endl;
             return;
@@ -699,13 +701,13 @@ void ForegroundCommand::execute(){
     SmallShell::getInstance().jobs->printSpecificJobByID(job_id_to_fg);
     //now we need to move  the job to fg
 
-    SmallShell::getInstance().curr_external_fg_command=job_to_fg->command_of_job;
-    int pid_of_job_to_fg=job_to_fg->get_pid();
+    //SmallShell::getInstance().curr_external_fg_command=job_to_fg->command_of_job;
+    int pid_of_job_to_fg=job_to_fg->pid_of_job_entry;
     kill(pid_of_job_to_fg, SIGCONT);
     if(waitpid(pid_of_job_to_fg,NULL, WUNTRACED)==-1){
         perror("smash error: wait failed");
     }
-    jobs->removeJobById(job_id_to_fg);
+    SmallShell::getInstance().jobs->removeJobById(job_id_to_fg);
     //  (SmallShell::getInstance().cur_fg_job) = nullptr;
 
 }
