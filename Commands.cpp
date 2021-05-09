@@ -617,7 +617,7 @@ void JobsList::addJob(Command* cmd, JobStatus status, pid_t pid_of_job ){
 void JobsCommand::execute(){
     for(auto iter= ((SmallShell::getInstance()).jobs)->jobs_list_vec.begin();iter!= SmallShell::getInstance().jobs->jobs_list_vec.end();++iter){
         std::cout<<"["<<(*iter)->get_job_id()<<"] "<<string((*iter)->command_line_of_job)<<" : "<<
-                 (*iter)->get_pid()<<" "<<difftime(time(NULL),(*iter)->arrived_time)<<" secs";
+                 (*iter)->pid_of_job_entry<<" "<<difftime(time(NULL),(*iter)->arrived_time)<<" secs";
 
         if((*iter)->get_status()==JobsList::stopped){ //stoped
             std::cout<<" (stopped)";
@@ -669,7 +669,7 @@ void KillCommand::execute(){
 }
 
 void ForegroundCommand::execute(){
-    std::cout<<"check fg"<<endl;
+    //std::cout<<"check fg"<<endl;
     int job_id_to_fg=jobs->getMaxID();
     int jobs_max_id=jobs->getMaxID();
     JobsList::JobEntry* job_to_fg=nullptr;
@@ -885,7 +885,7 @@ void RedirectionCommand::execute(){
     }
     if(redirected_fd == -1){
         perror("smash error: open failed");
-        //redirected_fd = open("/dev/null", O_WRONLY); is this needed????
+        redirected_fd = open("/dev/null", O_WRONLY); //is this needed????
     }
     // dup2 the fd of the filename into the STDOUT
     int dup2_res = dup2(redirected_fd, STDOUT_FILENO);
