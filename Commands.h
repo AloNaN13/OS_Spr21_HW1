@@ -158,7 +158,7 @@ public:
 
     };
     // TODO: Add your data members
-public:
+//public:
     JobsList();
     ~JobsList();
     void addJob(Command* cmd, JobStatus status, pid_t pid_of_job);
@@ -171,8 +171,8 @@ public:
     JobEntry * getLastJob(int* lastJobId);
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
-    int max_id;
     std::vector<JobEntry*> jobs_list_vec;
+    int max_id;
     //void deleteSpecificJobByID(int id_to_delete);
     void printSpecificJobByID(int id_to_print);
     int getMaxID(){return max_id;};

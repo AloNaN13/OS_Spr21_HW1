@@ -94,6 +94,8 @@ SmallShell::SmallShell():jobs(new JobsList()),current_promt("smash"),
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
+    delete jobs;
+    delete time_outs;
 }
 
 /**
@@ -148,7 +150,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
     } else if (firstWord.compare("quit") == 0) {
         return new QuitCommand(cmd_line,this->jobs );
     } else if (firstWord.compare("timeout") == 0) {
-        std::cout<<"it knows its time out"<<endl;
+        //std::cout<<"it knows its time out"<<endl;
         return timeOutCommand(cmd_line);
     }else {
         return new ExternalCommand(cmd_line);//need to deal with this
@@ -547,16 +549,6 @@ JobsList::JobEntry* JobsList::getLastStoppedJob(int *jobId){
 void JobsList::removeFinishedJobs(){
     pid_t result_of_wait;
 
-    //From eden
-    /*pid_t finproc;
-    finproc = waitpid(-1, NULL, WNOHANG);
-    while (finproc > 0)
-     { //checks if there is a finished child
-        SmallShell::getInstance().jobs->removeJobByPid(finproc);
-        finproc = waitpid(-1, NULL, WNOHANG);
-    }*/
-
-
     //std::vector<JobEntry*> jobs_to_erase;
     std::vector<int> ids_to_delete;
     for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
@@ -722,7 +714,7 @@ void BackgroundCommand::execute(){
     if(num_args==1){// there is no arguments beside the command
         job_to_bg=jobs->getLastStoppedJob(&job_id_to_bg);
         if(job_to_bg==nullptr){ //no stopped jobs
-            std::cout << "smash error: bg: there is no stopeed jobs to resume" << endl;
+            std::cout << "smash error: bg: there is no stopped jobs to resume" << endl;
             return;
         }
         job_id_to_bg=job_to_bg->job_id;
@@ -739,7 +731,7 @@ void BackgroundCommand::execute(){
             return;
         }
         if(job_to_bg->get_status()==JobsList::running){
-            std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" is already running in the backgroung"<<endl;
+            std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" is already running in the background"<<endl;
             return;
         }
     }
@@ -756,12 +748,6 @@ void BackgroundCommand::execute(){
 
 void ExternalCommand::execute() {
 
-
-    /*char *command = new char[COMMAND_ARGS_MAX_LENGTH + 1];
-    strcpy(command, command_line);
-    _removeBackgroundSign(command);*/
-
-    //from yuval change check if works
 
     char *cleancommand=strdup(command_line);
     _removeBackgroundSign(cleancommand);
@@ -845,13 +831,13 @@ specialType checkSpecialType(const char* cmd_line, int* special_loc){
 bool splitToCommands(specialType type, const char* cmd_line, char** cmd_line_1, char** cmd_line_2){
     // check spaces before or after?
     int loc;
-    specialType type1 = checkSpecialType(cmd_line, &loc);
+    specialType type_1 = checkSpecialType(cmd_line, &loc);
     *cmd_line_1 = strndup(cmd_line,loc);
     if(*cmd_line_1 == nullptr){
         return false;
     }
     int spec_char_size = 1;
-    if(type == APPEND || type == STDERR){
+    if(type_1 == APPEND || type_1 == STDERR){
         spec_char_size++;
     }
     *cmd_line_2 = strdup(cmd_line + loc + spec_char_size + 1);
