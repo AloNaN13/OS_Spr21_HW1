@@ -142,10 +142,12 @@ public:
         JobStatus job_status;//0 stopeed, 1 running
         Command* command_of_job;
         string command_line_of_job;
+        pid_t pid_of_job_entry;
 
 
-        JobEntry(int job_id, time_t arrived_time,JobStatus job_status, Command* command_of_job, string cmd_line_of_job):
-                job_id(job_id),arrived_time(arrived_time),job_status(job_status),command_of_job(command_of_job),command_line_of_job(cmd_line_of_job){}
+        JobEntry(int job_id, time_t arrived_time,JobStatus job_status, Command* command_of_job, string cmd_line_of_job,pid_t pid_of_job_entry):
+                job_id(job_id),arrived_time(arrived_time),job_status(job_status),command_of_job(command_of_job),command_line_of_job(cmd_line_of_job),
+                pid_of_job_entry(pid_of_job_entry){}
         JobStatus get_status(){return job_status;}
         int get_job_id(){return job_id;}
         int get_pid(){return command_of_job->getPid();}
@@ -159,20 +161,22 @@ public:
 public:
     JobsList();
     ~JobsList();
-    void addJob(Command* cmd, JobStatus status);
+    void addJob(Command* cmd, JobStatus status, pid_t pid_of_job);
     void printJobsList();
     void killJobs();
     void removeFinishedJobs();
     JobEntry * getJobById(int jobId);
     void removeJobById(int jobId);
+    void removeJobByPid(int pid_of_removed_job);
     JobEntry * getLastJob(int* lastJobId);
     JobEntry *getLastStoppedJob(int *jobId);
     // TODO: Add extra methods or modify exisitng ones as needed
     int max_id;
-    std::vector<JobEntry*> jobs_list;
+    std::vector<JobEntry*> jobs_list_vec;
     //void deleteSpecificJobByID(int id_to_delete);
     void printSpecificJobByID(int id_to_print);
     int getMaxID(){return max_id;};
+    std::vector<JobEntry*> getJobsList(){return jobs_list_vec;}
 };
 
 class JobsCommand : public BuiltInCommand {

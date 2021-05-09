@@ -18,7 +18,7 @@ void ctrlZHandler(int sig_num) {
         perror("smash error: kill failed");
     }
     SmallShell::getInstance().jobs->addJob
-            (SmallShell::getInstance().curr_external_fg_command,JobsList::stopped);
+            (SmallShell::getInstance().curr_external_fg_command,JobsList::stopped,SmallShell::getInstance().curr_external_fg_command->getPid());
     std::cout<<"smash: process "<<pid_for_sig<< " was stopped"<<endl;
 
     SmallShell::getInstance().curr_external_fg_command=nullptr;
@@ -66,8 +66,5 @@ void alarmHandler(int sig_num) {
         int for_alarm=closest_time_out->duration-(difftime(closest_time_out->insertion_time,time(NULL)));
         alarm(for_alarm);
     }
-
-
-
 }
 
