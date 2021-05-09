@@ -165,7 +165,7 @@ Command * SmallShell::CreateCommand(const char* cmd_line) {
 Command* SmallShell::timeOutCommand(const char *cmd_line){
     //background=_isBackgroundComamnd(cmd_line);
     char* args_with_timeout[COMMAND_MAX_ARGS];
-    char* cmd_line_without_background_sign=strdup(cmd_line);
+    // char* cmd_line_without_background_sign=strdup(cmd_line);
 
     int num_args_of_allcommand= _parseCommandLine(cmd_line,args_with_timeout);
     int duration_of_timeout=atoi(args_with_timeout[1]);
@@ -318,10 +318,9 @@ void SmallShell::executeCommand(const char *cmd_line) {
     }
 }
 
-std::vector<JobsList::JobEntry*> SmallShell:: jobsToSendAlarm(){
+/*std::vector<JobsList::JobEntry*> SmallShell:: jobsToSendAlarm(){
 
-
-}
+}*/
 
 
 
@@ -454,7 +453,7 @@ QuitCommand::QuitCommand(const char* cmd_line, JobsList* jobs) : BuiltInCommand(
 void QuitCommand::execute(){
     if(to_kill) {
         //(assert(jobs_list));
-        jobs_list->killJobs();
+        SmallShell::getInstance().jobs->killJobs();
     }
     exit(0); // correct way to exit?
 }
@@ -462,23 +461,23 @@ void QuitCommand::execute(){
 
 /////////////////////////////////////////functions of jobslist
 
-JobsList::JobsList():jobs_list(vector <JobEntry*> ()),max_id(0){}
+JobsList::JobsList():jobs_list_vec(vector <JobEntry*> ()),max_id(0){}
 void JobsList::killJobs() {
     // loop to kill all jobs
-    int jobs_num = jobs_list.size();
+    int jobs_num = jobs_list_vec.size();
     std::cout << "smash: sending SIGKILL signal to " << jobs_num << " jobs:" << endl;
-    for (auto iter = jobs_list.begin(); iter != jobs_list.end(); ++iter) {
-        pid_t pid = (*iter)->get_pid();
+    for (auto iter = jobs_list_vec.begin(); iter != jobs_list_vec.end(); ++iter) {
+        pid_t pid = (*iter)->pid_of_job_entry;
         if(kill(pid, SIGKILL) == -1){
             perror("smash error: kill failed"); // ok to do so? needed?
         }
         std::cout << pid << ": " << (*iter)->command_line_of_job << endl;
     }
-    jobs_list.clear();
+    jobs_list_vec.clear();
 }
 
 JobsList::JobEntry* JobsList::getJobById(int job_id){
-    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+    for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
         if(job_id==(*iter)->job_id){
             return (*iter);
         }
@@ -487,20 +486,49 @@ JobsList::JobEntry* JobsList::getJobById(int job_id){
 
 }
 
-void JobsList::removeJobById(int id_to_delete){
-    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        if(id_to_delete==(*iter)->job_id){
-            jobs_list.erase(iter);
-            break;
+
+void JobsList::removeJobByPid( int pid_of_removed_job){
+
+    for (unsigned int i = 0; i < jobs_list_vec.size(); i++)
+    {
+        if (jobs_list_vec[i]->job_id == pid_of_removed_job)
+        {
+            jobs_list_vec.erase(jobs_list_vec.begin() + i);
+            return;
         }
     }
 }
 
-void JobsList::printSpecificJobByID(int id_to_print){
-    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        if(id_to_print==(*iter)->job_id){
-            std::cout << string((*iter)->command_line_of_job) << " : " << (*iter)->get_pid() << endl;
+void JobsList::removeJobById(int id_to_delete){
 
+    for (unsigned int i = 0; i < jobs_list_vec.size(); i++)
+    {
+        if (jobs_list_vec[i]->job_id == id_to_delete)
+        {
+            jobs_list_vec.erase(jobs_list_vec.begin() + i);
+            return;
+        }
+    }
+    /*for(auto iter=SmallShell::getInstance().jobs->getJobsList().begin();iter!=SmallShell::getInstance().jobs->getJobsList().end();++iter){
+        std::cout<<"in for"<<endl;
+        if(*iter==nullptr){
+            std::cout<<"iter=null"<<endl;
+
+        }
+        if(id_to_delete==(*iter)->job_id){
+            std::cout<<"id to delete==id of iter"<<endl;
+            SmallShell::getInstance().jobs->getJobsList().erase(iter);
+            return;
+        }
+    }*/
+
+}
+
+void JobsList::printSpecificJobByID(int id_to_print){
+
+    for(auto iter=SmallShell::getInstance().jobs->jobs_list_vec.begin();iter!=SmallShell::getInstance().jobs->jobs_list_vec.end();++iter){
+        if(id_to_print==(*iter)->job_id){
+            std::cout << string((*iter)->command_line_of_job) << " : " << (*iter)->pid_of_job_entry << endl;
             break;
         }
     }
@@ -508,7 +536,7 @@ void JobsList::printSpecificJobByID(int id_to_print){
 
 JobsList::JobEntry* JobsList::getLastStoppedJob(int *jobId){
     JobEntry* last_stopped_job=nullptr;
-    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+    for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
         if((*iter)->get_status()==stopped){
             last_stopped_job=(*iter);
         }
@@ -518,25 +546,42 @@ JobsList::JobEntry* JobsList::getLastStoppedJob(int *jobId){
 
 void JobsList::removeFinishedJobs(){
     pid_t result_of_wait;
-    std::vector<JobEntry*> jobs_to_erase;
-    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
-        result_of_wait=waitpid((*iter)->get_pid(),NULL,WNOHANG);
+
+    //From eden
+    /*pid_t finproc;
+    finproc = waitpid(-1, NULL, WNOHANG);
+    while (finproc > 0)
+     { //checks if there is a finished child
+        SmallShell::getInstance().jobs->removeJobByPid(finproc);
+        finproc = waitpid(-1, NULL, WNOHANG);
+    }*/
+
+
+    //std::vector<JobEntry*> jobs_to_erase;
+    std::vector<int> ids_to_delete;
+    for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
+        result_of_wait=waitpid((*iter)->pid_of_job_entry ,NULL,WNOHANG);
         //CHECK IF RESULT WAS BAD
 
-        if (result_of_wait>0){
-            jobs_to_erase.push_back(*iter);
+        if (result_of_wait>=1){
+            //jobs_to_erase.push_back(*iter);
+            ids_to_delete.push_back((*iter)->job_id);
         }
 
 
     }
     //now its time to delete
 
-    for(auto iter= jobs_to_erase.begin();iter!=jobs_to_erase.end();++iter){
-        removeJobById((*iter)->job_id);
+
+    for(auto iter= ids_to_delete.begin();iter!=ids_to_delete.end();++iter){
+        //removeJobById((*iter)->job_id);
+        SmallShell::getInstance().jobs->removeJobById((*iter));
     }
+
+
     //find max+id
     int max_id=0;
-    for(auto iter= jobs_list.begin();iter!=jobs_list.end();++iter){
+    for(auto iter= jobs_list_vec.begin();iter!=jobs_list_vec.end();++iter){
         if(max_id<(*iter)->job_id){
             max_id=(*iter)->job_id;
         }
@@ -544,7 +589,7 @@ void JobsList::removeFinishedJobs(){
     this->max_id=max_id;
 }
 
-void JobsList::addJob(Command* cmd, JobStatus status ){
+void JobsList::addJob(Command* cmd, JobStatus status, pid_t pid_of_job ){
     int id_of_added_job=this->getMaxID()+1;
     /*JobStatus status_of_job;
     if (isStopped) {
@@ -558,8 +603,8 @@ void JobsList::addJob(Command* cmd, JobStatus status ){
 
     string stringdup=strdup(cmd->getCommandLine());
     JobsList::JobEntry* job_to_add =
-            new JobsList::JobEntry(id_of_added_job,time(NULL),status,cmd,stringdup);
-    jobs_list.push_back(job_to_add);
+            new JobsList::JobEntry(id_of_added_job,time(NULL),status,cmd,stringdup,pid_of_job);
+    jobs_list_vec.push_back(job_to_add);
     SmallShell::getInstance().jobs->max_id=id_of_added_job;
 
 
@@ -570,7 +615,7 @@ void JobsList::addJob(Command* cmd, JobStatus status ){
 
 
 void JobsCommand::execute(){
-    for(auto iter= ((SmallShell::getInstance()).jobs)->jobs_list.begin();iter!= SmallShell::getInstance().jobs->jobs_list.end();++iter){
+    for(auto iter= ((SmallShell::getInstance()).jobs)->jobs_list_vec.begin();iter!= SmallShell::getInstance().jobs->jobs_list_vec.end();++iter){
         std::cout<<"["<<(*iter)->get_job_id()<<"] "<<string((*iter)->command_line_of_job)<<" : "<<
                  (*iter)->get_pid()<<" "<<difftime(time(NULL),(*iter)->arrived_time)<<" secs";
 
@@ -578,6 +623,8 @@ void JobsCommand::execute(){
             std::cout<<" (stopped)";
         }
         std::cout<<endl;
+
+
     }
 }
 
@@ -592,6 +639,7 @@ void KillCommand::execute(){
     }
 
     int signal_to_send =atoi ((args_of_command[1]+1));
+
     //shou i check that signal to send consists only of numbers
 
     int job_id=atoi (args_of_command[2]);
@@ -605,21 +653,23 @@ void KillCommand::execute(){
     }
 
 
-    JobsList::JobEntry* job_to_kill= this->jobs->getJobById(job_id);
+    JobsList::JobEntry* job_to_kill= SmallShell::getInstance().jobs->getJobById(job_id);
     if (job_to_kill==NULL){//there is no such job
-        std::cout<<"smash error: kill: job-id" << job_id << "does not exist"<<endl;
+        std::cout<<"smash error: kill: job-id " << job_id << " does not exist"<<endl;
         return;
     }
-    pid_t pid_of_job_to_kill=job_to_kill->get_pid();
-    if(kill(pid, signal_to_send)!=0){
+    pid_t pid_of_job_to_kill=job_to_kill->pid_of_job_entry;
+
+    if(kill(pid_of_job_to_kill, signal_to_send)!=0){
         perror("smash error: kill failed");
         return;
     }
-    cout<< "signal number"<<signal_to_send<<"was sent to pid"<<pid_of_job_to_kill<<endl;
+    cout<< "signal number "<<signal_to_send<<" was sent to pid "<<pid_of_job_to_kill<<endl;
 
 }
 
 void ForegroundCommand::execute(){
+    std::cout<<"check fg"<<endl;
     int job_id_to_fg=jobs->getMaxID();
     int jobs_max_id=jobs->getMaxID();
     JobsList::JobEntry* job_to_fg=nullptr;
@@ -642,22 +692,22 @@ void ForegroundCommand::execute(){
             return;
         }
 
-        job_to_fg= this->jobs->getJobById(job_id_to_fg);
+        job_to_fg= SmallShell::getInstance().jobs->getJobById(job_id_to_fg);
         if(job_to_fg==nullptr){
             std::cout << "smash error: fg: job-id "<< job_id_to_fg <<" does not exist"<<endl;
             return;
         }
     }
-    jobs->printSpecificJobByID(job_id_to_fg);
+    SmallShell::getInstance().jobs->printSpecificJobByID(job_id_to_fg);
     //now we need to move  the job to fg
 
-    SmallShell::getInstance().curr_external_fg_command=job_to_fg->command_of_job;
-    int pid_of_job_to_fg=job_to_fg->get_pid();
+    //SmallShell::getInstance().curr_external_fg_command=job_to_fg->command_of_job;
+    int pid_of_job_to_fg=job_to_fg->pid_of_job_entry;
     kill(pid_of_job_to_fg, SIGCONT);
     if(waitpid(pid_of_job_to_fg,NULL, WUNTRACED)==-1){
         perror("smash error: wait failed");
     }
-    jobs->removeJobById(job_id_to_fg);
+    SmallShell::getInstance().jobs->removeJobById(job_id_to_fg);
     //  (SmallShell::getInstance().cur_fg_job) = nullptr;
 
 }
@@ -675,9 +725,10 @@ void BackgroundCommand::execute(){
             std::cout << "smash error: bg: there is no stopeed jobs to resume" << endl;
             return;
         }
+        job_id_to_bg=job_to_bg->job_id;
     }
     else{
-        int job_id_to_bg=atoi (args_of_command[1]);
+        job_id_to_bg=atoi(args_of_command[1]);
         if(job_id_to_bg==0){//format of the id is bad
             std::cout << "smash error: bg: invalid arguments" << endl;
             return;
@@ -687,13 +738,14 @@ void BackgroundCommand::execute(){
             std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" does not exist"<<endl;
             return;
         }
-        if(job_to_bg->get_status()==JobsList::stopped){
+        if(job_to_bg->get_status()==JobsList::running){
             std::cout << "smash error: bg: job-id "<< job_id_to_bg <<" is already running in the backgroung"<<endl;
+            return;
         }
     }
     jobs->printSpecificJobByID(job_id_to_bg);
     //now to bring it to bg
-    if(kill(job_id_to_bg,SIGCONT)==-1){
+    if(kill(job_to_bg->pid_of_job_entry,SIGCONT)==-1){
         perror("smash error: kill failed");
         return;
     }
@@ -732,7 +784,7 @@ void ExternalCommand::execute() {
         }
 
 
-    }else if (pid < 0){ //error
+    }else if (pid_of_fork < 0){ //error
         perror("smash error: fork failed");
         return;
     }
@@ -742,7 +794,7 @@ void ExternalCommand::execute() {
         if( background==true){
 
 
-            SmallShell::getInstance().jobs->addJob(this,JobsList::running);
+            SmallShell::getInstance().jobs->addJob(this,JobsList::running,pid_of_fork);
 
         }
         else {//background==false
