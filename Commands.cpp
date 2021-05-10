@@ -94,8 +94,8 @@ SmallShell::SmallShell():jobs(new JobsList()),current_promt("smash"),
 
 SmallShell::~SmallShell() {
 // TODO: add your implementation
-    delete jobs;
-    delete time_outs;
+    // delete jobs;
+    // delete time_outs;
 }
 
 /**
